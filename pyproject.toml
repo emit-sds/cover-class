@@ -1,0 +1,25 @@
+[project]
+name = "cover-data-orchestrator"
+version = "0.0.1"
+requires-python = ">=3.9"
+authors = [
+  {name = "Michael Kiper"},
+]
+maintainers = [
+  {name = "Michael Kiper", email = "michael.kiper@jpl.nasa.gov"},
+]
+dependencies = [
+  "torch>=2.8.0",
+  "msgspec>=0.19.0",
+  "numpy>=2.3.2",
+  "pyyaml>=6.0.2",
+]
+
+[build-system]
+requires = ["setuptools >= 75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+package-dir = { "" = "src" }
+packages = ["cover_class"]

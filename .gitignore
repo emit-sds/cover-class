@@ -1,0 +1,14 @@
+# vscode
+.vscode
+
+# distribution/packaging
+build
+dist
+*.egg-info
+
+# platform
+.DS_Store
+
+# python 
+__pycache__/
+

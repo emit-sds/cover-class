@@ -1,0 +1,16 @@
+version: v0
+tags: initial-config classes[]
+datasets:
+  soil: /some/path.hdf5
+  pv:
+  npv:
+  ash+char:
+  snow+ice:
+  water:
+simulation:
+  n_components: [1,5]
+  n_classes_in_subsets: 3
+  alpha: 0.3
+  min-frac: 0.1
+  noise-file: example.csv
+

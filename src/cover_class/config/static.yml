@@ -1,0 +1,12 @@
+version: v0
+tags: initial-config
+datasets:
+  soil:
+    location: http:example-soild.com
+    output-file: /some/path/soild-out.hdf5
+  pv:
+  npv:
+  ash+char:
+  snow+ice:
+  water:
+
