@@ -12,7 +12,6 @@ from sklearn.decomposition import PCA # type: ignore[import]
 All functions in this file are meant to be used on a per-class basis
 '''
 
-# Question: If N_vertices < n_samples, should I just random uniform select the remaining items?
 def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
     Z_c, _ = pca(data_matrix, num_pc)
 
@@ -20,7 +19,6 @@ def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **k
     if n_samples >= hv.size:
         return FloatTensor(torch.from_numpy(data_matrix[hv]).to(torch.float32))
 
-    # Question: should I select like this or uniform select vertices? There're merits to both
     # Greedy farthest point sampling in the set of hull vertices
     V = Z_c[hv]
     i = np.argmax(np.einsum('ij,ij->i', V, V)) # arbitrary starting point (max squared magnitude)
