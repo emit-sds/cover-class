@@ -3,7 +3,7 @@ import numpy as np
 from torch import FloatTensor
 import torch
 
-from cover_class.subsample import subsampler
+from cover_class.subsample import subsampler # type: ignore[import]
 
 RANDOM_SEED = 42
 
