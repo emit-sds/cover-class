@@ -21,14 +21,14 @@ def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **k
         return FloatTensor(torch.from_numpy(data_matrix[hv]).to(torch.float32))
 
     # Question: should I select like this or uniform select vertices? There're merits to both
-    # Farthest point sampling in the set of hull vertices
+    # Greedy farthest point sampling in the set of hull vertices
     V = Z_c[hv]
     i = np.argmax(np.einsum('ij,ij->i', V, V)) # arbitrary starting point (max squared magnitude)
     sel = [i]
     for _ in range(1, min(n_samples, len(V))):
         d2 = np.sum((V - V[i])**2, axis=1) # PCA in Euclidean space
         d2[np.array(sel)] = -np.inf
-        i = np.argmax(d2) # get furthest point from point
+        i = np.argmax(d2) # Get furthest point from base point
         sel.append(i)
         
     idx = hv[np.array(sel)]
