@@ -8,19 +8,24 @@ from scipy.spatial import ConvexHull # type: ignore[import]
 from sklearn.cluster import KMeans # type: ignore[import]
 from sklearn.decomposition import PCA # type: ignore[import]
 
+'''
+All functions in this file are meant to be used on a per-class basis
+'''
+
 # Question: If N_vertices < n_samples, should I just random uniform select the remaining items?
 def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
     Z_c, _ = pca(data_matrix, num_pc)
 
-    hv = np.unique(ConvexHull(Z_c, **kwargs).vertices)
+    hv = ConvexHull(Z_c, **kwargs).vertices
     if n_samples >= hv.size:
         return FloatTensor(torch.from_numpy(data_matrix[hv]).to(torch.float32))
 
+    # Question: should I select like this or uniform select vertices? There're merits to both
     # Farthest point sampling in the set of hull vertices
     V = Z_c[hv]
-    i = np.argmax(np.einsum('ij,ij->i', V, V)) # arbitrary starting point (highest magnitude)
+    i = np.argmax(np.einsum('ij,ij->i', V, V)) # arbitrary starting point (max squared magnitude)
     sel = [i]
-    for _ in range(0, min(n_samples, len(hv))):
+    for _ in range(1, min(n_samples, len(V))):
         d2 = np.sum((V - V[i])**2, axis=1) # PCA in Euclidean space
         d2[np.array(sel)] = -np.inf
         i = np.argmax(d2) # get furthest point from point
