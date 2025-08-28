@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from torch import FloatTensor
 import torch
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA # type: ignore[import]
 
 from cover_class.subsample import subsampler # type: ignore[import]
 
