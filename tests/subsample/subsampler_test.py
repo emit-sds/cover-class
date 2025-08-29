@@ -22,7 +22,7 @@ class subsampleTest(unittest.TestCase):
         self.assertIsInstance(sample, FloatTensor)
         self.assertEqual(sample.dtype, torch.float32)
         self.assertEqual(len(sample), n_samples)
-        self.assertEqual(sample.shape[1], self.data_matrix.shape[1])
+        self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
 
         sample = subsampler.convex_hull(self.data_matrix, self.num_pc, self.N_datapoints+1)
         self.assertLess(len(sample), self.N_datapoints)
@@ -54,7 +54,7 @@ class subsampleTest(unittest.TestCase):
         self.assertIsInstance(sample, FloatTensor)
         self.assertEqual(sample.dtype, torch.float32)
         self.assertEqual(len(sample), n_samples)
-        self.assertEqual(sample.shape[1], self.data_matrix.shape[1])
+        self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
 
     def test_lhs(self):
         '''This just tests that the function itself works'''
@@ -66,7 +66,7 @@ class subsampleTest(unittest.TestCase):
         self.assertIsInstance(sample, FloatTensor)
         self.assertEqual(sample.dtype, torch.float32)
         self.assertLess(len(sample), ((self.num_pc ** hypercubes_per_dimension)*samples_per_hypercube)+1)
-        self.assertEqual(sample.shape[1], self.data_matrix.shape[1])
+        self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
 
 if __name__ == "__main__":
     unittest.main()

@@ -37,9 +37,8 @@ def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwar
     ''' NOTE: this is only for Euclidean distances '''
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
-    centroids_pca = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).cluster_centers_
-    centroids_spectra = pca.inverse_transform(centroids_pca)
-    return FloatTensor(torch.from_numpy(centroids_spectra).to(torch.float32))
+    centroids_idx = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).medoid_indices_
+    return FloatTensor(torch.from_numpy(data_matrix[centroids_idx]).to(torch.float32))
 
 
 def lhs(data_matrix: NDArray[np.float32], num_pc:int, hypercubes_per_dimension:int, samples_per_hypercube:int) -> FloatTensor:
