@@ -46,11 +46,11 @@ class subsampleTest(unittest.TestCase):
         self.assertTrue(all([i in sample for i in vertices]))
 
 
-    def test_kmeans(self):
+    def test_kmedoids(self):
         '''This just tests that the function itself works'''
         self.preamble()
         n_samples = 10
-        sample = subsampler.kmeans(self.data_matrix, self.num_pc, n_samples)
+        sample = subsampler.kmedoids(self.data_matrix, self.num_pc, n_samples)
         self.assertIsInstance(sample, FloatTensor)
         self.assertEqual(sample.dtype, torch.float32)
         self.assertEqual(len(sample), n_samples)

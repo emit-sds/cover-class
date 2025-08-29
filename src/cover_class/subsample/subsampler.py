@@ -5,7 +5,7 @@ import torch
 from numpy.typing import NDArray
 import numpy as np
 from scipy.spatial import ConvexHull # type: ignore[import]
-from sklearn.cluster import KMeans # type: ignore[import]
+from sklearn_extra.cluster import KMedoids # type: ignore[import]
 from sklearn.decomposition import PCA # type: ignore[import]
 
 '''
@@ -33,11 +33,11 @@ def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **k
     return FloatTensor(torch.from_numpy(data_matrix[idx]).to(torch.float32))
 
 
-def kmeans(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
+def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
     ''' NOTE: this is only for Euclidean distances '''
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
-    centroids_pca = KMeans(n_clusters=n_samples, **kwargs).fit(Z_c).cluster_centers_
+    centroids_pca = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).cluster_centers_
     centroids_spectra = pca.inverse_transform(centroids_pca)
     return FloatTensor(torch.from_numpy(centroids_spectra).to(torch.float32))
 
