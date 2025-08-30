@@ -7,7 +7,6 @@ from pathlib import Path
 import math
 
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
-from cover_class.dataloader.const import *
 from cover_class.utils import read_config
 
 
@@ -90,11 +89,9 @@ class OrchestratorDataLoader(DataLoader):
         self.static_epoch_step = 0
         self.__shuffle__()
     
-    def __len__(self) -> int:
-        if self.args.static_data is not None:
-            return int(len(self.args.static_data) / self.args.percent_static)
-        return MAX_DATALOADER_VALUE
-
+    def static_epoch_len(self) -> Optional[int]:
+        if self.args.static_data is None: return None
+        return int(len(self.args.static_data) / self.args.percent_static)
 
 def dataloader_from_config( # type: ignore
         config_path:str, 
