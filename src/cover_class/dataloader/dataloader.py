@@ -66,7 +66,7 @@ class OrchestratorDataLoader(DataLoader):
             idx = self._static_idx_order[start: end] # type: ignore
             self.static_samples_seen += len(idx)
             if end >= len(self.args.static_data)-1: self.__reset__() # type: ignore
-            
+
             return self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
         
         self.is_simulated_batch = True
@@ -74,7 +74,7 @@ class OrchestratorDataLoader(DataLoader):
         return ... # type: ignore
         
     def __static_batch_predicate__(self) -> bool:
-        return math.floor((self.static_epoch_step + 1) * self.args.batch_size) != math.floor(self.static_epoch_step * self.args.batch_size)
+        return math.floor((self.static_epoch_step + 1) * self.args.percent_static) == math.floor(self.static_epoch_step * self.args.percent_static)
     
     def __shuffle__(self) -> None:
         if self.shuffle:
