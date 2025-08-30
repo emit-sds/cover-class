@@ -6,7 +6,7 @@ from msgspec import Struct
 from pathlib import Path
 import math
 
-from cover_class.simulation import run_simulation, SimulationArgs
+from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
 from cover_class.dataloader.const import *
 from cover_class.utils import read_config
 
@@ -14,16 +14,16 @@ from cover_class.utils import read_config
 class OrchestratorDataLoaderArgs(Struct):
     batch_size: int
     percent_static: float
-    output_path:str
-    checkpoint_path:Optional[str]
-    static_data:Optional[torch.FloatTensor]
-    static_labels:Optional[torch.Tensor]
-    sim_args:Optional[SimulationArgs]
+    output_path: str # this param isn't necessary but could be convenient for users
+
+    static_data: Optional[torch.FloatTensor]
+    static_labels: Optional[torch.Tensor]
+
+    sim_args: SimulationArgs
+    data_args: DataArgs
 
     def __post_init__(self):
         Path.is_dir(Path(self.output_path))
-        if self.checkpoint_path:
-            assert Path.is_dir(Path(self.checkpoint_path))    
 
 
 class OrchestratorDataLoader(DataLoader):
@@ -71,7 +71,7 @@ class OrchestratorDataLoader(DataLoader):
         
         self.is_simulated_batch = True
         # TODO: need to return simulated data
-        return ... # type: ignore
+        return run_simulation(self.args.sim_args, self.args.data_args)
         
     def __static_batch_predicate__(self) -> bool:
         return math.floor((self.static_epoch_step + 1) * self.args.percent_static) == math.floor(self.static_epoch_step * self.args.percent_static)
