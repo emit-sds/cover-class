@@ -3,7 +3,6 @@ import torch
 from torch import FloatTensor, Tensor, CharTensor
 from torch.utils.data import DataLoader
 from msgspec import Struct
-from pathlib import Path
 import math
 
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
@@ -13,16 +12,12 @@ from cover_class.utils import read_config
 class OrchestratorDataLoaderArgs(Struct):
     batch_size: int
     percent_static: float
-    output_path: str # this param isn't necessary but could be convenient for users
 
     static_data: Optional[torch.FloatTensor]
     static_labels: Optional[torch.Tensor]
 
     sim_args: SimulationArgs
     data_args: DataArgs
-
-    def __post_init__(self):
-        Path.is_dir(Path(self.output_path))
 
 
 class OrchestratorDataLoader(DataLoader):
@@ -36,7 +31,7 @@ class OrchestratorDataLoader(DataLoader):
     device: Optional[torch.device] = None
     shuffle = True
 
-    step = 0 
+    step = 0
     static_epoch = 0
     static_epoch_step = 0
     static_samples_seen = 0
@@ -69,7 +64,6 @@ class OrchestratorDataLoader(DataLoader):
             return self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
         
         self.is_simulated_batch = True
-        # TODO: need to return simulated data
         return run_simulation(self.args.sim_args, self.args.data_args)
         
     def __static_batch_predicate__(self) -> bool:
