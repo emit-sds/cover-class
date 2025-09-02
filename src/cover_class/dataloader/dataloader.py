@@ -3,7 +3,6 @@ import torch
 from torch import FloatTensor, Tensor, CharTensor
 from torch.utils.data import DataLoader
 from msgspec import Struct
-import math
 
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
 from cover_class.utils import read_config
