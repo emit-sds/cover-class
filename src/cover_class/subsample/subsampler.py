@@ -54,7 +54,7 @@ def kmeans(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs
 def lhs(data_matrix: NDArray[np.float32], num_pc:int, hypercubes_per_dimension:int, samples_per_hypercube:int) -> FloatTensor:
     Z_c, _ = pca(data_matrix, num_pc)
 
-    ## Get the min and max bounds for each PC dinmension
+    ## Get the min and max bounds for each PC dimension
     mins, maxs = Z_c.min(axis=0), Z_c.max(axis=0)
 
     ## Get the widths of each sub-hypercube to sample from
