@@ -4,8 +4,6 @@ from numpy.typing import NDArray
 import numpy as np
 from sklearn.model_selection import train_test_split as tts # type: ignore[import]
 
-def interior_interpolation(data_matrix: NDArray[np.float32]) -> Tuple[FloatTensor, Tensor, FloatTensor, Tensor]: ... # type: ignore
-
 def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]:
     return tts(data_matrix, labels, test_size=frac_test)
 
