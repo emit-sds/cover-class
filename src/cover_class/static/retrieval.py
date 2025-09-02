@@ -25,9 +25,7 @@ def download(uri: str) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
     return vfs_csv(bio)
 
 
-def vfs_csv(path:str|BytesIO) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
-    '''
-    The CSVs found on the virutal filesystem are expected to be standardized such that:
+    The CSVs found on the virtual filesystem are expected to be standardized such that:
     - There are a contiguous set of columns whose header values are floating-point wavelength values (in nm)
         and the values of the rows for each of the forementioned columns are the spectral reflectance values.
     '''
