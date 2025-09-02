@@ -13,4 +13,32 @@ simulation:
   alpha: 0.3
   min-frac: 0.1
   noise-file: example.csv
-
+subsample:
+  test-fraction: 0.2
+  selected-method: convex-hull
+  convex-hull:
+    num_pc: 1
+    n_samples: 10
+    qhull_options:
+  kmeans:
+    num_pc: 1
+    n_samples: 10
+    init:
+    n_init:
+    max_iter:
+    tol:
+    random_state:
+    algorithm:
+  kmedoids:
+    num_pc: 1
+    n_samples: 10
+    metric:
+    method:
+    init:
+    max_iterint:
+    random_state:
+  lhs:
+    num_pc: 1
+    n_samples: 10
+    hypercubes_per_dimension: 3
+    samples_per_hypercube: 3
