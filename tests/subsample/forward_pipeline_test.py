@@ -18,6 +18,7 @@ class subsampleUtilsTest(unittest.TestCase):
                 'kmeans': {'num_pc':1, 'n_samples':2, 'init': 'x'},
                 'kmedoids': {'num_pc':1, 'n_samples':2, 'metric': 'euclidean'},
                 'lhs': {'num_pc':1, 'n_samples':2, 'hypercubes_per_dimension': 3, 'samples_per_hypercube':4},
+                'blah': {},
             },
         }
         data = np.array([0xD, 0xE, 0xA, 0xD, 0xD, 0xE, 0xA, 0xD])
@@ -30,8 +31,9 @@ class subsampleUtilsTest(unittest.TestCase):
             m.assert_called_once()
             call_args = m.call_args_list.pop()
             self.assertDictEqual(config['subsample'][t], call_args.kwargs) # type: ignore 
+        list(map(check_args, {'convex-hull':cv_mock, 'kmeans':km_mock, 'kmedoids':kmed_mock, 'lhs':lhs_mock}.items()))
 
-        map(check_args, {'convex-hull':cv_mock, 'kmeans':km_mock, 'kmedoids':kmed_mock, 'lhs':lhs_mock}.items())
+        self.assertRaises(ValueError, check_args, ('blah', cv_mock))
 
         
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ subsample:
     metric:
     method:
     init:
-    max_iterint:
+    max_iter:
     random_state:
   lhs:
     num_pc: 1

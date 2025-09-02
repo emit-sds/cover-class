@@ -22,12 +22,12 @@ def subsample_from_config(
     match method:
         case 'convex-hull':
             return convex_hull(data_matrix, **method_config)
-        case 'keams':
+        case 'kmeans':
             return kmeans(data_matrix, **method_config)
         case 'kmedoids':
             return kmedoids(data_matrix, **method_config)
         case 'lhs':
             return lhs(data_matrix, **method_config)
         case _:
-            ValueError(f'Unsupported method: {method}')
+            raise ValueError(f'Unsupported method: {method}')
     return FloatTensor() # here for mypy
