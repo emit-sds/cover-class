@@ -45,6 +45,15 @@ class subsampleTest(unittest.TestCase):
         vertices = torch.from_numpy(manual_convex_hull_check[vertices]).to(dtype=torch.float32)
         self.assertTrue(all([i in sample for i in vertices]))
 
+    def test_kmeans(self):
+        '''This just tests that the function itself works'''
+        self.preamble()
+        n_samples = 10
+        sample = subsampler.kmeans(self.data_matrix, self.num_pc, n_samples)
+        self.assertIsInstance(sample, FloatTensor)
+        self.assertEqual(sample.dtype, torch.float32)
+        self.assertEqual(len(sample), n_samples)
+        self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
 
     def test_kmedoids(self):
         '''This just tests that the function itself works'''
