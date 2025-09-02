@@ -5,7 +5,6 @@ from cover_class.subsample.subsampler import (
     lhs,
 )
 from cover_class.subsample.forward_pipeline import (
-    interior_interpolation,
     train_test_split,
     subsample_from_config,
 )
@@ -15,7 +14,6 @@ __all__ = [
     "kmeans",
     "kmedoids",
     "lhs",
-    "interior_interpolation",
     "train_test_split",
     "subsample_from_config",
 ]

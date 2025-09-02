@@ -6,8 +6,6 @@ import numpy as np
 from cover_class.utils import read_config
 from cover_class.subsample.subsampler import convex_hull, kmeans, kmedoids, lhs
 
-def interior_interpolation(data_matrix: NDArray[np.float32]) -> Tuple[FloatTensor, Tensor, FloatTensor, Tensor]: ... # type: ignore
-
 def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]: ... # type: ignore
 
 def subsample_from_config(
