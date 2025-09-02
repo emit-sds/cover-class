@@ -81,7 +81,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
 
 def generate_hdf5_from_config(config_path:str) -> None:
     config = read_config(config_path)
-    # get the output directoryies
+    # get the output directories
     ds = config['datasets']
     outdir = ds['output-directory']
     assert Path(outdir).is_dir(), f"'output-directory': {outdir} is not a directory"
