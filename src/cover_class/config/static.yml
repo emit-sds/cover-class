@@ -1,12 +1,25 @@
 version: v0
 tags: initial-config
 datasets:
-  soil:
-    location: http:example-soild.com
-    output-file: /some/path/soild-out.hdf5
-  pv:
-  npv:
-  ash+char:
-  snow+ice:
-  water:
-
+  output-directory: /tmp/
+  classes:
+    soil:
+      - http:example.com
+      - http:example.com
+      - /some/path
+    pv:
+      - http:example.com
+      - /some/path
+    npv:
+      - http:example.com
+      - /some/path
+    ash+char:
+      - http:example.com
+      - /some/path
+    snow+ice:
+      - http:example.com
+      - /some/path
+    water:
+      - http:example.com
+      - /some/path
+target-wavelengths-file: ./wavelengths.npy
