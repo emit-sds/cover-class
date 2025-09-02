@@ -1,14 +1,14 @@
 import unittest
 import torch
 
-from cover_class.subsample import utils # type: ignore[import]
+from cover_class.subsample import forward_pipeline # type: ignore[import]
 
 class subsampleTest(unittest.TestCase):
     def test_train_test_split(self):
         frac = 0.2
         x = torch.rand((10,5))
         y = torch.ones(len(x))
-        x_train, x_test, y_train, y_test = utils.train_test_split(x, y, frac)
+        x_train, x_test, y_train, y_test = forward_pipeline.train_test_split(x, y, frac)
         self.assertEqual(len(x_train), 8)
         self.assertEqual(len(y_train), 8)
         self.assertEqual(len(x_test), 2)
