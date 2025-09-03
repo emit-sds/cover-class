@@ -4,7 +4,7 @@ from numpy.typing import NDArray
 import numpy as np
 from sklearn.model_selection import train_test_split as tts # type: ignore[import]
 
-def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]:
-    return tts(data_matrix, labels, test_size=frac_test)
+def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float, seed: int=42) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]:
+    return tts(data_matrix, labels, test_size=frac_test, random_state=seed)
 
 def subsample_from_config(config:str) -> Tuple[FloatTensor, Tensor, FloatTensor, Tensor]: ... # type: ignore
