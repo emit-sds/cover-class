@@ -7,6 +7,7 @@ from msgspec import Struct, field
 from cover_class.simulation import args_from_config, SimulationArgs, DataArgs
 import cover_class.simulation as sim
 from cover_class.utils import read_config
+from cover_class.dataloader.utils import hdf5_file_handler
 
 
 class OrchestratorDatasetArgs(Struct):
@@ -110,14 +111,14 @@ class OrchestratorDataset(IterableDataset):
 
 def dataloader_from_config(
         config: Dict|str, 
-        spectra:FloatTensor,
-        labels:Tensor,
         batch_size:int,
         shuffle: bool = True, 
     ) -> DataLoader:
 
     config = read_config(config)
     sim_config_args, sim_data_args = args_from_config(config, batch_size)
+
+    spectra, labels = hdf5_file_handler(config)
 
     ods_args = OrchestratorDatasetArgs(
         batch_size,

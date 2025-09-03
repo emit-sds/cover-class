@@ -1,8 +1,11 @@
 version: v0
 tags: initial-config classes[]
 datasets:
-  soil: /some/path.hdf5
+  soil:
+    - /some/path.hdf5
+    - /some/path.hdf5
   pv:
+    - /some/path.hdf5
   npv:
   ash+char:
   snow+ice:
