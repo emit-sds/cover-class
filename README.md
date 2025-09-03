@@ -14,6 +14,7 @@ dataloader: OrchestratorDataset = dataloader_from_config(
     my_config_path, 
     data_train, 
     labels_train,
-    batch_size
+    batch_size,
+    shuffle
 )
 ```
