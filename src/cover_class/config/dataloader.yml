@@ -13,4 +13,5 @@ simulation:
   alpha: 0.3
   min-frac: 0.1
   noise-file: example.csv
-
+dataloader:
+  percent-static-data: 0.5

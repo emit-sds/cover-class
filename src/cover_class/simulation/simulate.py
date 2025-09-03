@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from msgspec import Struct
 import numpy as np
 import numpy.typing as npt
@@ -19,5 +19,7 @@ class DataArgs(Struct):
     elements: npt.NDArray[np.float32]
     class_targets: npt.NDArray[np.int8]
     wavelengths: Optional[npt.NDArray[np.float16]]
+
+def args_from_config(config: Dict|str, batch_size:int) -> Tuple[SimulationArgs, DataArgs]: ... # type: ignore
 
 def run_simulation(s: SimulationArgs, d: DataArgs) -> Tuple[FloatTensor, ByteTensor]: ... # type: ignore

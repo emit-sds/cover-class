@@ -4,7 +4,12 @@ from torch import FloatTensor, Tensor, CharTensor
 from torch.utils.data import DataLoader
 from msgspec import Struct
 
-from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
+from cover_class.simulation import (
+    run_simulation, 
+    args_from_config, 
+    SimulationArgs, 
+    DataArgs
+)
 from cover_class.utils import read_config
 
 
@@ -43,7 +48,7 @@ class OrchestratorDataLoader(DataLoader):
         - The static and simulated data will be generated/retrieved on a per-batch basis
     '''
     args: OrchestratorDataLoaderArgs
-    device: Optional[torch.device] = None
+    device: torch.device = torch.device("cpu")
     shuffle = True
 
     step = 0
@@ -57,7 +62,7 @@ class OrchestratorDataLoader(DataLoader):
     def __init__(self, 
                 args: OrchestratorDataLoaderArgs, 
                 shuffle: bool = True, 
-                device: Optional[torch.device] = None
+                device: torch.device = torch.device("cpu"),
             ) -> None:
         self.args = args; self.shuffle = shuffle; self.device = device
         if self.args._using_static: self.__shuffle__()
@@ -104,15 +109,25 @@ class OrchestratorDataLoader(DataLoader):
         if self.args.static_data is None: return None
         return int(len(self.args.static_data) / self.args.percent_static)
 
-def dataloader_from_config( # type: ignore
-        config_path:str, 
+def dataloader_from_config(
+        config: Dict|str, 
         spectra:FloatTensor,
         labels:Tensor,
         batch_size:int,
-    ) -> OrchestratorDataLoader: 
-    config = read_config(config_path)
-    # Dataloader:
-    # 1. build the dataloader args
-    # 2. build the simulation args
-    # 3. build dataloader
-    ...
+        shuffle: bool = True, 
+        device: torch.device = torch.device("cpu"),
+    ) -> OrchestratorDataLoader:
+
+    config = read_config(config)
+    sim_config_args, sim_data_args = args_from_config(config, batch_size)
+
+    odl_args = OrchestratorDataLoaderArgs(
+        batch_size,
+        config["dataloader"]["percent-static-data"],
+        sim_config_args,
+        sim_data_args,
+        spectra,
+        labels
+    )
+    odl_args._method_selection_idxs = CharTensor(odl_args._method_selection_idxs.to(device))
+    return OrchestratorDataLoader(odl_args, shuffle, device)
