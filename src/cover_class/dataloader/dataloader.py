@@ -2,7 +2,7 @@ from typing import *
 import torch
 from torch import FloatTensor, Tensor, CharTensor
 from torch.utils.data import DataLoader
-from msgspec import Struct
+from msgspec import Struct, field
 
 from cover_class.simulation import (
     run_simulation, 
@@ -23,11 +23,11 @@ class OrchestratorDataLoaderArgs(Struct):
     static_data: Optional[torch.FloatTensor]
     static_labels: Optional[torch.Tensor]
 
-    _using_static = False
-    _using_sim = False
+    _using_static: bool = field(default=False)
+    _using_sim: bool   = field(default=False)
 
     # This tells you the ids out of a 100 batches, which ones will be static/simulated
-    _method_selection_idxs: CharTensor = CharTensor(torch.zeros(100, dtype=torch.int8))
+    _method_selection_idxs: CharTensor = field(default_factory=lambda: CharTensor(torch.zeros(100, dtype=torch.int8)))
 
     def __post_init__(self):
         self._using_static = (self.static_labels is not None) and (self.static_data is not None)
@@ -48,7 +48,6 @@ class OrchestratorDataLoader(DataLoader):
         - The static and simulated data will be generated/retrieved on a per-batch basis
     '''
     args: OrchestratorDataLoaderArgs
-    device: torch.device = torch.device("cpu")
     shuffle = True
 
     step = 0
@@ -62,9 +61,8 @@ class OrchestratorDataLoader(DataLoader):
     def __init__(self, 
                 args: OrchestratorDataLoaderArgs, 
                 shuffle: bool = True, 
-                device: torch.device = torch.device("cpu"),
             ) -> None:
-        self.args = args; self.shuffle = shuffle; self.device = device
+        self.args = args; self.shuffle = shuffle
         if self.args._using_static: self.__shuffle__()
 
     def __next__(self) -> Tuple[torch.FloatTensor, torch.Tensor]:
@@ -74,7 +72,7 @@ class OrchestratorDataLoader(DataLoader):
             self.is_simulated_batch = False
             start =  (self.static_epoch_step * self.args.batch_size)
             end   = ((self.static_epoch_step+1) * self.args.batch_size)
-            # mypy doesn't catch self._using_static
+            # mypy doesn't catch self.args._using_static
             idx = self._static_idx_order[start: end] # type: ignore
             self.static_samples_seen += len(idx)
             if end >= len(self.args.static_data)-1: # type: ignore
@@ -84,6 +82,7 @@ class OrchestratorDataLoader(DataLoader):
         
         elif self.args._using_sim:
             self.is_simulated_batch = True
+            # mypy doesn't catch self.args._using_sim
             return run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
         
         else: raise StopIteration()
@@ -91,10 +90,8 @@ class OrchestratorDataLoader(DataLoader):
     def __shuffle__(self) -> None:
         if self.shuffle:
             self._static_idx_order = CharTensor(torch.randperm(
-                # I don't want to need a check every time here - caller's responsibility
-                self.args.static_labels.nelement(), # type: ignore
+                self.args.static_labels.nelement(), # type: ignore # caller's responsibility
                 dtype=torch.int8, 
-                device=self.device
             ))
         
     def __reset__(self) -> None:
@@ -115,7 +112,6 @@ def dataloader_from_config(
         labels:Tensor,
         batch_size:int,
         shuffle: bool = True, 
-        device: torch.device = torch.device("cpu"),
     ) -> OrchestratorDataLoader:
 
     config = read_config(config)
@@ -129,5 +125,4 @@ def dataloader_from_config(
         spectra,
         labels
     )
-    odl_args._method_selection_idxs = CharTensor(odl_args._method_selection_idxs.to(device))
-    return OrchestratorDataLoader(odl_args, shuffle, device)
+    return OrchestratorDataLoader(odl_args, shuffle)

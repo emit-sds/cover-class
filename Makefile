@@ -46,3 +46,6 @@ dev-install: ## Locally install project in development mode
 	$(PYTHON_COMMAND) -m pip uninstall -y $(NAME)
 	$(PYTHON_COMMAND) -m pip install -e .
 
+## Testing:
+test:
+	$(PYTHON_COMMAND) -m unittest discover tests -p '*_test.py'
