@@ -1,7 +1,7 @@
 from typing import *
 import torch
-from torch import FloatTensor, Tensor, CharTensor
-from torch.utils.data import DataLoader
+from torch import FloatTensor, Tensor, CharTensor, LongTensor
+from torch.utils.data import IterableDataset, DataLoader
 from msgspec import Struct, field
 
 from cover_class.simulation import (
@@ -13,7 +13,7 @@ from cover_class.simulation import (
 from cover_class.utils import read_config
 
 
-class OrchestratorDataLoaderArgs(Struct):
+class OrchestratorDatasetArgs(Struct):
     batch_size: int
     percent_static: float
 
@@ -40,14 +40,14 @@ class OrchestratorDataLoaderArgs(Struct):
         self._method_selection_idxs[:int(self.percent_static)] = 1
 
 
-class OrchestratorDataLoader(DataLoader):
+class OrchestratorDataset(IterableDataset):
     '''
-    OrchestratorDataLoader is a non-terminating iterator. Caller must institute it's own break.
+    OrchestratorDataset is a non-terminating iterator. Caller must institute it's own break.
 
     Data Policy:
         - The static and simulated data will be generated/retrieved on a per-batch basis
     '''
-    args: OrchestratorDataLoaderArgs
+    args: OrchestratorDatasetArgs
     shuffle = True
 
     step = 0
@@ -56,42 +56,44 @@ class OrchestratorDataLoader(DataLoader):
     static_samples_seen = 0
     is_simulated_batch = False
 
-    _static_idx_order: Optional[CharTensor] = None
+    _static_idx_order: Optional[LongTensor] = None
 
     def __init__(self, 
-                args: OrchestratorDataLoaderArgs, 
+                args: OrchestratorDatasetArgs, 
                 shuffle: bool = True, 
             ) -> None:
         self.args = args; self.shuffle = shuffle
         if self.args._using_static: self.__shuffle__()
 
-    def __next__(self) -> Tuple[torch.FloatTensor, torch.Tensor]:
+    def __iter__(self) -> Iterator[Tuple[torch.FloatTensor, torch.Tensor]]:
         ''' This iterator does not stop '''
-        self.step += 1
-        if self.args._using_static and self.__use_static_predicate__():
-            self.is_simulated_batch = False
-            start =  (self.static_epoch_step * self.args.batch_size)
-            end   = ((self.static_epoch_step+1) * self.args.batch_size)
-            # mypy doesn't catch self.args._using_static
-            idx = self._static_idx_order[start: end] # type: ignore
-            self.static_samples_seen += len(idx)
-            if end >= len(self.args.static_data)-1: # type: ignore
-                self.__reset__()
+        while True:
+            if self.args._using_static and self.__use_static_predicate__():
+                self.is_simulated_batch = False
+                start =  (self.static_epoch_step * self.args.batch_size)
+                end   = ((self.static_epoch_step+1) * self.args.batch_size)
+                self.static_epoch_step += 1
+                # mypy doesn't catch self.args._using_static
+                idx = self._static_idx_order[start: end] # type: ignore
+                self.static_samples_seen += len(idx)
+                if end >= len(self.args.static_data)-1: # type: ignore
+                    self.__reset__()
+                yield self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
 
-            return self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
-        
-        elif self.args._using_sim:
-            self.is_simulated_batch = True
-            # mypy doesn't catch self.args._using_sim
-            return run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
-        
-        else: raise StopIteration()
+            elif self.args._using_sim:
+                self.is_simulated_batch = True
+                # mypy doesn't catch self.args._using_sim
+                yield run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+
+            else: raise StopIteration()
+
             
     def __shuffle__(self) -> None:
         if self.shuffle:
-            self._static_idx_order = CharTensor(torch.randperm(
+            self._static_idx_order = LongTensor(torch.randperm(
                 self.args.static_labels.nelement(), # type: ignore # caller's responsibility
-                dtype=torch.int8, 
+                device=self.args.static_labels.device, # type: ignore
+                dtype=torch.uint64, 
             ))
         
     def __reset__(self) -> None:
@@ -112,12 +114,12 @@ def dataloader_from_config(
         labels:Tensor,
         batch_size:int,
         shuffle: bool = True, 
-    ) -> OrchestratorDataLoader:
+    ) -> DataLoader:
 
     config = read_config(config)
     sim_config_args, sim_data_args = args_from_config(config, batch_size)
 
-    odl_args = OrchestratorDataLoaderArgs(
+    odl_args = OrchestratorDatasetArgs(
         batch_size,
         config["dataloader"]["percent-static-data"],
         sim_config_args,
@@ -125,4 +127,5 @@ def dataloader_from_config(
         spectra,
         labels
     )
-    return OrchestratorDataLoader(odl_args, shuffle)
+    old = OrchestratorDataset(odl_args, shuffle)
+    return DataLoader(old, batch_size=None)

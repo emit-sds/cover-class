@@ -1,11 +1,11 @@
 from cover_class.dataloader.dataloader import (
-    OrchestratorDataLoader,
-    OrchestratorDataLoaderArgs,
+    OrchestratorDataset,
+    OrchestratorDatasetArgs,
     dataloader_from_config
 )
 
 __all__ = [
-    "OrchestratorDataLoader",
-    "OrchestratorDataLoaderArgs",
+    "OrchestratorDataset",
+    "OrchestratorDatasetArgs",
     "dataloader_from_config",
 ]
