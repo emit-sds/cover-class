@@ -80,7 +80,7 @@ class OrchestratorDataset(IterableDataset):
                 # mypy doesn't catch self.args._using_static
                 idx = self._static_idx_order[start: end] # type: ignore
                 self.static_samples_seen += len(idx)
-                if end >= len(self.args.static_data)-1: # type: ignore
+                if end >= len(self.args.static_data): # type: ignore
                     self.__reset__()
                 yield self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
 
