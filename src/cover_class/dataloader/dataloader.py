@@ -117,7 +117,7 @@ def dataloader_from_config(
     ) -> DataLoader:
 
     config = read_config(config)
-    sim_config_args, sim_data_args = args_from_config(config, batch_size)
+    sim_config_args, sim_data_args = args_from_config(config, spectra, labels, batch_size)
 
     ods_args = OrchestratorDatasetArgs(
         batch_size,
