@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple, Dict
 from msgspec import Struct
 import numpy as np
 import numpy.typing as npt
-from torch import FloatTensor, ByteTensor
+from torch import FloatTensor, ByteTensor, Tensor
 import torch
 
-from cover_class.simulation.const import *
+from cover_class.utils import read_config
 
 class _ctxblk:
     def __enter__(self, *args): ...
@@ -19,13 +19,42 @@ class SimulationArgs(Struct):
     min_frac: float
     n_components: List[int] # per class
     alpha: Optional[float]
+    alpha_uniform_low: float
+    alpha_uniform_high: float
+    white_noise: float
     noise_covariance: Optional[npt.NDArray[np.float32]]
 
 class DataArgs(Struct):
     real_spectra: npt.NDArray[np.float32]
     real_labels: npt.NDArray[np.uint8]
 
-def args_from_config(config: Dict|str, batch_size:int) -> Tuple[SimulationArgs, DataArgs]: ... # type: ignore
+def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, batch_size:int) -> Tuple[SimulationArgs, DataArgs]:
+    config = read_config(config)
+    sim_config = config['simulation']
+    n_classes = sum(map(bool, config['datasets'].values()))
+    noise_cov = None
+    if sim_config['noise_covariance_csv']:
+        assert str(sim_config['noise_covariance_csv']).endswith('csv'), f'Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}'
+        noise_cov = np.genfromtxt(sim_config['noise_covariance_csv'], delimiter=',', dtype=float)
+
+    s = SimulationArgs(
+        n_iters = batch_size,
+        n_classes = n_classes,
+        n_classes_in_subsets = sim_config['n_classes_in_subsets'],
+        min_frac = sim_config['min_frac'],
+        n_components = sim_config['n_components'],
+        alpha = sim_config['alpha'],
+        alpha_uniform_low = sim_config['alpha_uniform_low'],
+        alpha_uniform_high = sim_config['alpha_uniform_high'],
+        white_noise = sim_config['white_noise'],
+        noise_covariance = noise_cov
+    )
+
+    d = DataArgs(
+        real_spectra = data_matrix.cpu().numpy(),
+        real_labels = labels.cpu().numpy()
+    )
+    return s, d
 
 def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[FloatTensor, ByteTensor]:
     size = (sim_args.n_iters, sim_args.n_classes_in_subsets)
@@ -42,7 +71,7 @@ def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[Float
     if sim_args.alpha is not None:
         alpha: npt.NDArray[np.float16] = np.repeat(sim_args.alpha, total_arr_size)
     else:
-        alpha = np.random.uniform(ALPHA_UNIFORM_LOW, ALPHA_UNIFORM_HIGH, total_arr_size).astype(np.float16)
+        alpha = np.random.uniform(sim_args.alpha_uniform_low, sim_args.alpha_uniform_high, total_arr_size).astype(np.float16)
 
     alpha_idx_start = 0
     for i in range(sim_args.n_iters): # unfortunately, need neet to iterate due to how each simulation has different component numbers
@@ -74,7 +103,7 @@ def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[Float
 
         with __ctxblk: # add in the noise
             mixed_spectrum = np.sum(spectra_subset.T * dirich_fractions, axis=1, dtype=np.float32)
-            mixed_spectrum += add_noise(sim_args.noise_covariance, total_n_components[i])
+            mixed_spectrum += add_noise(sim_args.noise_covariance, total_n_components[i], sim_args.white_noise)
 
         spectra_result.append(mixed_spectrum)
         label_result.append(label_subset)
@@ -103,6 +132,7 @@ def stratified_split(
 def add_noise(
         sim_args_noise:Optional[npt.NDArray[np.float32]],
         n_components: int,
+        white_noise_scale: float,
     ) -> npt.NDArray[np.float32]:
     
 
@@ -122,7 +152,7 @@ def add_noise(
             noise = np.random.multivariate_normal(means, sim_args_noise, 1).ravel()
         
         # add white noise
-        white_noise =  np.random.normal(loc = means, scale = WHITE_NOISE)
+        white_noise =  np.random.normal(loc = means, scale = white_noise_scale)
         noise = noise + white_noise
         
     else:
