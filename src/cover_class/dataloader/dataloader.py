@@ -4,12 +4,8 @@ from torch import FloatTensor, Tensor, CharTensor, LongTensor
 from torch.utils.data import IterableDataset, DataLoader
 from msgspec import Struct, field
 
-from cover_class.simulation import (
-    run_simulation, 
-    args_from_config, 
-    SimulationArgs, 
-    DataArgs
-)
+from cover_class.simulation import args_from_config, SimulationArgs, DataArgs
+import cover_class.simulation as sim
 from cover_class.utils import read_config
 
 
@@ -46,6 +42,13 @@ class OrchestratorDataset(IterableDataset):
 
     Data Policy:
         - The static and simulated data will be generated/retrieved on a per-batch basis
+
+    Example use:
+    >>> old = OrchestratorDataset(args)
+    >>> dl = DataLoader(old, batch_size=None)
+    >>> # NOTE: The `batch_size` in the dataloader must be set to `None`
+    >>> for X, Y in dl:
+    >>>     ...
     '''
     args: OrchestratorDatasetArgs
     shuffle = True
@@ -68,6 +71,7 @@ class OrchestratorDataset(IterableDataset):
     def __iter__(self) -> Iterator[Tuple[torch.FloatTensor, torch.Tensor]]:
         ''' This iterator does not stop '''
         while True:
+            self.step += 1
             if self.args._using_static and self.__use_static_predicate__():
                 self.is_simulated_batch = False
                 start =  (self.static_epoch_step * self.args.batch_size)
@@ -83,17 +87,16 @@ class OrchestratorDataset(IterableDataset):
             elif self.args._using_sim:
                 self.is_simulated_batch = True
                 # mypy doesn't catch self.args._using_sim
-                yield run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+                yield sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
 
             else: raise StopIteration()
-
             
     def __shuffle__(self) -> None:
         if self.shuffle:
             self._static_idx_order = LongTensor(torch.randperm(
                 self.args.static_labels.nelement(), # type: ignore # caller's responsibility
                 device=self.args.static_labels.device, # type: ignore
-                dtype=torch.uint64, 
+                dtype=torch.int64, 
             ))
         
     def __reset__(self) -> None:
@@ -119,7 +122,7 @@ def dataloader_from_config(
     config = read_config(config)
     sim_config_args, sim_data_args = args_from_config(config, batch_size)
 
-    odl_args = OrchestratorDatasetArgs(
+    ods_args = OrchestratorDatasetArgs(
         batch_size,
         config["dataloader"]["percent-static-data"],
         sim_config_args,
@@ -127,5 +130,5 @@ def dataloader_from_config(
         spectra,
         labels
     )
-    old = OrchestratorDataset(odl_args, shuffle)
-    return DataLoader(old, batch_size=None)
+    ods = OrchestratorDataset(ods_args, shuffle)
+    return DataLoader(ods, batch_size=None)
