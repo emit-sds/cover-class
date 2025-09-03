@@ -106,10 +106,7 @@ class OrchestratorDataset(IterableDataset):
 
     def __use_static_predicate__(self) -> bool:
         return bool(self.args._method_selection_idxs[(self.step % 100)])
-    
-    def static_epoch_len(self) -> Optional[int]:
-        if self.args.static_data is None: return None
-        return int(len(self.args.static_data) / self.args.percent_static)
+
 
 def dataloader_from_config(
         config: Dict|str, 
