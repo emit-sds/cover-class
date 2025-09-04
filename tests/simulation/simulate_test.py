@@ -107,7 +107,7 @@ class simulationTest(unittest.TestCase):
             self.assertFalse(mask.any())
 
         with self.subTest("test_function_receives_expected_input"):
-            # The dicichlet functions needs to be provided a number of alphas that correspond to the number of components to be simulated
+            # The dirichlet functions needs to be provided a number of alphas that correspond to the number of components to be simulated
             sim_args = SimulationArgs(
                 n_iters = 100,
                 n_classes_in_subsets = 5,
