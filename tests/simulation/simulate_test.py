@@ -142,15 +142,43 @@ class simulationTest(unittest.TestCase):
 
 
     def test_3_remove_small_fractions(self):
+        # The _3_remove_small_fractions should recieve a 1D array
         dirich_fractions = np.ones((10,)) * 0.1
         mask = np.zeros((10,)).astype(np.bool_)
         mask[:2] = True
         survivors = simulate._3_remove_small_fractions(dirich_fractions, mask)
-        self.assertTrue(len(survivors) == 2)
+        self.assertEqual(survivors.shape, (2,)) # 1 D
         self.assertTrue(survivors[0] == 0.5)
         self.assertTrue(survivors[1] == 0.5)
 
-    
+        with self.subTest("test_function_receives_expected_input"):
+            sim_args = SimulationArgs(
+                n_iters=1,
+                n_classes_in_subsets=2,
+                n_classes=3,
+                n_components=[1, 2, 3],
+                min_frac=0.0,
+                alpha=0.3,
+                alpha_uniform_low=0.0,
+                alpha_uniform_high=0.0,
+                white_noise=0.0,
+                noise_covariance=None,
+            )
+            data_args = DataArgs(np.ones((10, 5)), np.array([0, 0, 0, 1, 2, 2, 2, 3, 3, 3]))
+
+            dirich_fractions_received = None
+            def mock_remove_small_fractions(_dirich_fractions, _mask):
+                nonlocal dirich_fractions_received
+                dirich_fractions_received = _dirich_fractions
+                return _dirich_fractions
+            
+            with patch("cover_class.simulation.simulate._3_remove_small_fractions", side_effect=mock_remove_small_fractions):
+                simulate.run_simulation(sim_args, data_args)
+
+            self.assertIsNotNone(dirich_fractions_received)
+            self.assertTrue(len(dirich_fractions_received.shape), 1) # 1D
+
+
     def test_4_stratified_split(self):
         np.random.seed(RANDOM_SEED)
 

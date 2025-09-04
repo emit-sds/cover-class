@@ -24,6 +24,7 @@ def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[Float
     for i in range(sim_args.n_iters): # unfortunately, we need to iterate due to how each simulation has different component numbers
 
         with __ctxblk: # get dirichlet samples
+            # (dirich_fractions, mask) are 1D vectors
             dirich_fractions, mask = _2_generate_dirichlet_distribution(
                 alpha[alpha_idx_start: alpha_idx_start + total_n_components[i]], 
                 sim_args.min_frac
@@ -100,8 +101,8 @@ def _2_generate_dirichlet_distribution(
         min_frac: float
         
     ) -> Tuple[
-        npt.NDArray[np.float32], # dirich_fractions
-        npt.NDArray[np.bool_]    # mask
+        npt.NDArray[np.float32], # dirich_fractions (1D vector)
+        npt.NDArray[np.bool_]    # mask (1D vector)
     ]:
 
     # len(dirich_fractions) = (total number of components for this simulation - variable per simulation)
@@ -116,7 +117,7 @@ def _3_remove_small_fractions(
         
     ) -> npt.NDArray[np.float32]:
 
-    survivors = dirich_fractions[mask]
+    survivors = dirich_fractions[mask] # 1D vector
     survivors /= survivors.sum()
     return survivors
 
@@ -150,8 +151,7 @@ def _5_add_noise(
     
     if sim_args_noise is not None:
         if len(sim_args_noise.shape) < 2:
-            # ---- option 1: scale diagonal std
-            
+            # option 1: scale diagonal std
             weights = np.diag(sim_args_noise)
             scale = np.random.normal(loc = 1)
             means = np.zeros(weights.shape[0])
@@ -159,7 +159,7 @@ def _5_add_noise(
             noise = noise * np.sign(scale)
         
         else:
-            # ---- option 2: use full smooth cov matrix
+            # option 2: use full smooth cov matrix
             means = np.zeros(sim_args_noise.shape[0])
             noise = np.random.multivariate_normal(means, sim_args_noise, 1).ravel()
         
