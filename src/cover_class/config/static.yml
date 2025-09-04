@@ -22,4 +22,3 @@ datasets:
     water:
       - http:example.com
       - /some/path
-target-wavelengths-file: ./wavelengths.npy

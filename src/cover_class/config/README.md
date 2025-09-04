@@ -21,7 +21,6 @@ datasets:
   water:
     location:    <paths to datasets [list[string]]>
     output-file: <output location [string]>
-target-wavelengths-file: <path to a '.npy' file [string]>
 ```
 
 ### dataloader.yml
@@ -42,7 +41,3 @@ simulation:
   min-frac:             <minimum fraction of class presence to be included in simulation [float]>
   noise-file:           <path to noise CSV file of covariances [string]>
 ```
-
-### wavelengths.npy
-This is the set of EMIT instrument product wavelengths as of 08/29/25.
-This is meant to be referenced by `target-wavelengths-file` in `static.yml`.

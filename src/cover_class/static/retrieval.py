@@ -25,6 +25,8 @@ def download(uri: str) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
     return vfs_csv(bio)
 
 
+def vfs_csv(path:str|BytesIO) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
+    '''
     The CSVs found on the virtual filesystem are expected to be standardized such that:
     - There are a contiguous set of columns whose header values are floating-point wavelength values (in nm)
         and the values of the rows for each of the forementioned columns are the spectral reflectance values.
@@ -84,12 +86,6 @@ def generate_hdf5_from_config(config_path:str) -> None:
     outdir = ds['output-directory']
     assert Path(outdir).is_dir(), f"'output-directory': {outdir} is not a directory"
 
-    # get the target wavelengths
-    wavelength_file:str = config['target-wavelengths-file']
-    assert Path(wavelength_file).exists(), f"'target-wavelengths-file': {wavelength_file} does not exist"
-    assert wavelength_file.endswith('.npy'), f"'target-wavelengths-file': {wavelength_file} is not a '.npy' file"
-    target_wavelengths: np.ndarray = np.load(wavelength_file)
-
     for d in (ds_classes := ds['classes']):
         for location in ds_classes[d]:
             # 1. get the wavelength and spectra from the locations
@@ -97,7 +93,7 @@ def generate_hdf5_from_config(config_path:str) -> None:
             else: file_wavelengths, spectra = download(location)
 
             # 2. interpolate the wavelengths
-            spectra_interp = interior_interpolation(spectra, file_wavelengths, target_wavelengths)
+            spectra_interp, target_wavelengths = interior_interpolation(spectra, file_wavelengths)
 
             # 3. save hdf5 file
             outname = make_hdf5(
