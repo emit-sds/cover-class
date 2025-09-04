@@ -1,1 +1,0 @@
-MAX_DATALOADER_VALUE = (1 << 64) - 1
