@@ -4,7 +4,7 @@ import numpy.typing as npt
 from torch import FloatTensor, ByteTensor
 import torch
 
-from cover_class.simulation import SimulationArgs, DataArgs
+from cover_class.simulation.args import SimulationArgs, DataArgs
 
 
 class _ctxblk:
@@ -25,11 +25,11 @@ def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[Float
 
         with __ctxblk: # get dirichlet samples
             dirich_fractions, mask = _2_generate_dirichlet_distribution(
-                alpha[alpha_idx_start, alpha_idx_start + total_n_components[i]], 
+                alpha[alpha_idx_start: alpha_idx_start + total_n_components[i]], 
                 sim_args.min_frac
             )
             alpha_idx_start += total_n_components[i]
-            if (~mask).all(): continue
+            if not mask.any(): continue
 
         with __ctxblk: # remove small fractions and re-weigh the rest
             dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
@@ -49,16 +49,18 @@ def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[Float
             mixed_spectrum = np.sum(spectra_subset.T * dirich_fractions, axis=1, dtype=np.float32)
             mixed_spectrum += _5_add_noise(
                 sim_args.noise_covariance,
-                total_n_components[i], 
+                data_args.real_spectra.shape[1], 
                 sim_args.white_noise
             )
 
         spectra_result.append(mixed_spectrum)
         label_result.append(label_subset)
 
-    spectra = torch.from_numpy(np.concatenate(spectra_result, axis=0)).to(dtype=torch.float32)
-    labels = torch.from_numpy(np.concatenate(label_result, axis=0)).to(dtype=torch.uint8)
-    return FloatTensor(spectra), ByteTensor(labels)
+    if spectra_result:
+        spectra = torch.from_numpy(np.concatenate(spectra_result, axis=0)).to(dtype=torch.float32)
+        labels = torch.from_numpy(np.concatenate(label_result, axis=0)).to(dtype=torch.uint8)
+        return FloatTensor(spectra), ByteTensor(labels)
+    return FloatTensor(torch.tensor([], dtype=torch.float32)), ByteTensor(torch.tensor([], dtype=torch.uint8))
 
 
 def _0_init_simulation_state(
@@ -91,7 +93,7 @@ def _1_generate_alpha(
         return np.repeat(alpha, array_len).astype(np.float16)
     else:
         return np.random.uniform(alpha_uniform_low, alpha_uniform_high, array_len).astype(np.float16)
-    
+
 
 def _2_generate_dirichlet_distribution(
         alpha:    npt.NDArray[np.float16],
@@ -103,7 +105,7 @@ def _2_generate_dirichlet_distribution(
     ]:
 
     # len(dirich_fractions) = (total number of components for this simulation - variable per simulation)
-    dirich_fractions: npt.NDArray[np.float32] = np.random.dirichlet(alpha, 1).astype(np.float32)
+    dirich_fractions: npt.NDArray[np.float32] = np.random.dirichlet(alpha, 1).astype(np.float32).flatten()
     mask:             npt.NDArray[np.bool_]   = dirich_fractions >= min_frac
     return dirich_fractions, mask
 
@@ -114,8 +116,6 @@ def _3_remove_small_fractions(
         
     ) -> npt.NDArray[np.float32]:
 
-    if not mask.any():
-        dirich_fractions[np.argmax(dirich_fractions)] = 1
     survivors = dirich_fractions[mask]
     survivors /= survivors.sum()
     return survivors
@@ -143,7 +143,7 @@ def _4_stratified_split(
 
 def _5_add_noise(
         sim_args_noise:    Optional[npt.NDArray[np.float32]],
-        n_components:      int,
+        wavelength_dim:    int,
         white_noise_scale: float,
 
     ) -> npt.NDArray[np.float32]:
@@ -169,6 +169,6 @@ def _5_add_noise(
         
     else:
         scale = 1
-        noise = np.repeat(0, n_components).astype(np.float32)
+        noise = np.repeat(0, wavelength_dim).astype(np.float32)
 
     return noise.astype(np.float32)
