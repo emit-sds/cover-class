@@ -169,6 +169,6 @@ def _5_add_noise(
         
     else:
         scale = 1
-        noise = np.repeat(0, wavelength_dim).astype(np.float32)
+        noise = np.zeros(wavelength_dim, dtype=np.float32)
 
     return noise.astype(np.float32)
