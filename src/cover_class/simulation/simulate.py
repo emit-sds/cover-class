@@ -18,6 +18,7 @@ from torch import device as Device
 from cover_class.simulation.args import SimulationArgs, DataArgs
 
 
+# The masked out alpha value will be 2^-126, the IEEE 754 smallest positive float32 value
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
 
@@ -134,9 +135,8 @@ def _1_generate_alpha(
     else:
         alpha = (a_uniform_low + ((a_uniform_high - a_uniform_low) * torch.rand(size, dtype=torch.float32, device=device)))
 
-    # Mask out all alpha values if they're index is greater than the number of components in their simulation
-    # The masked out value will be 2^-126, the IEEE 754 smallest positive float32 value
-    #       - `cumsum_n_components` substract by 1 since `cumsum_n_components` values are essentially 1-indexed
+    # Mask out all alpha values to 2^-126 if their index is greater than the number of components in their simulation
+    # `cumsum_n_components` is substracted by 1 since `cumsum_n_components` values are essentially 1-indexed
     alpha_mask = torch.arange(alpha.shape[1], device=device).unsqueeze(0) > (cumsum_n_components[:, -1].view(-1, 1) - 1) 
     alpha.masked_fill_(alpha_mask, ALPHA_MASKOUT_VALUE)
     return alpha # type: ignore[return-value]
@@ -170,7 +170,7 @@ def _3_remove_small_fractions(
     dirich_fractions.div_(dirich_fractions.sum(dim=1)[:, None])
 
 
-def _4_stratified_split( # type: ignore
+def _4_stratified_split(
         filtered_n_components_per_class: ShortTensor, 
         classes: CharTensor,
         labels: Tensor,

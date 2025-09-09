@@ -171,7 +171,7 @@ class simulationTest(unittest.TestCase):
         mask[:, :2] = False
         simulate._3_remove_small_fractions(dirich_fractions, mask)
         self.assertTrue(mask.sum(), mask.shape[0])
-        self.assertTrue((dirich_fractions == 1).sum(), mask.shape[0])
+        self.assertEqual((dirich_fractions == 1).sum(), mask.shape[0])
 
 
     def test_4_stratified_split(self):
