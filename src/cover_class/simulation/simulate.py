@@ -4,8 +4,6 @@ import numpy as np
 import numpy.typing as npt
 from torch import FloatTensor, ByteTensor, Tensor
 
-from cover_class.simulation.const import *
-
 class SimulationArgs(Struct):
     n_iters: int
     n_classes: int
