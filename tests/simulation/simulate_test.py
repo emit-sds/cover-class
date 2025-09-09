@@ -76,8 +76,8 @@ class simulationTest(unittest.TestCase):
 
             # condition 2: where alpha is given
             alpha = simulate._1_generate_alpha(simulation_space_size, cumsum_n_components, 0.5, 2, 10)
-            maskout_maks = torch.isclose(alpha, simulate.ALPHA_MASKOUT_VALUE)
-            self.assertTrue((alpha[~maskout_maks] == 0.5).all())
+            maskout_mask = torch.isclose(alpha, simulate.ALPHA_MASKOUT_VALUE)
+            self.assertTrue((alpha[~maskout_mask] == 0.5).all())
             check_alpha(alpha, maskout_mask)
 
         with self.subTest("test_function_receives_expected_input"):

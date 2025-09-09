@@ -52,7 +52,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         alpha_uniform_low = sim_config['alpha_uniform_low'],
         alpha_uniform_high = sim_config['alpha_uniform_high'],
         white_noise = sim_config['white_noise'],
-        noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32))
+        noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None
     )
 
     d = DataArgs(
