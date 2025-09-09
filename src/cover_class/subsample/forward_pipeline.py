@@ -2,11 +2,13 @@ from typing import Tuple, Dict
 from torch import FloatTensor, Tensor
 from numpy.typing import NDArray
 import numpy as np
+from sklearn.model_selection import train_test_split as tts # type: ignore[import]
 
 from cover_class.utils import read_config
 from cover_class.subsample.subsampler import convex_hull, kmeans, kmedoids, lhs
 
-def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]: ... # type: ignore
+def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float, seed: int=42) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]:
+    return tts(data_matrix, labels, test_size=frac_test, random_state=seed)
 
 def subsample_from_config(
         config:str, 
