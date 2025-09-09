@@ -163,6 +163,9 @@ def _3_remove_small_fractions(
     ) -> None:
     # all operations are inplace
 
+    r = (mask.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
+    mask[r, dirich_fractions.argmax(dim=1)[r]] = True # guarantees at least 1 class per simulation
+
     dirich_fractions.masked_fill_(~mask, 0)
     dirich_fractions.div_(dirich_fractions.sum(dim=1)[:, None])
 
@@ -264,31 +267,25 @@ def _6_add_noise(
     ) -> FloatTensor:
     
     if sim_args_noise is not None:
-
-        if sim_args_noise.dim() < 2:
-            # option 1: scale diagonal std
-            weights = torch.diag(sim_args_noise)
-            scale = torch.distributions.Normal(
-                torch.tensor(1.0, device=device), torch.tensor(1.0, device=device)
-            ).sample(())
-            means = torch.zeros(weights.shape[0], dtype=weights.dtype, device=weights.device)
-            noise = torch.distributions.MultivariateNormal(
-                means, covariance_matrix=weights * torch.abs(scale)
-            ).sample().ravel()
-            noise = noise * torch.sign(scale)
-        
-        else:
-            # option 2: use full smooth cov matrix
-            means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
-            noise = torch.distributions.MultivariateNormal(
-                means, covariance_matrix=sim_args_noise
-            ).sample().ravel()
+        if not (torch.linalg.eigvals(sim_args_noise).real>=0).all():
+            sim_args_noise = make_positive_definite(sim_args_noise)
+        means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
+        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample() # same shape as sim_args_noise
         
         # add white noise
-        white_noise = torch.normal(mean=means, std=float(white_noise_scale))
+        white_noise = torch.normal(mean=means, std=float(white_noise_scale)) # same shape as sim_args_noise
         noise = noise + white_noise
+        # noise = torch.diag(noise) # take the diagonal
         
     else:
         noise = torch.zeros(wavelength_dim, dtype=torch.float32, device=device)
 
     return noise.to(dtype=torch.float32) # type: ignore[return-value]
+
+
+def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:
+    assert len(A.shape)==2, "A needs to be a 2D matrix"
+    A = (A + A.T) * 0.5 # makes real, symmetric
+    eigenvals, eigenvecs = torch.linalg.eigh(A)
+    eigenvals = torch.clamp(eigenvals, min=min_eigen)
+    return (eigenvecs * eigenvals.unsqueeze(-2)) @ eigenvecs.T

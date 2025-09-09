@@ -26,6 +26,9 @@ class DataArgs(Struct):
     real_spectra: FloatTensor
     real_labels: Tensor
 
+    def __post_init__(self):
+        assert self.real_spectra.shape[0] == self.real_labels.shape[0], "Spectra and Labels need to have the same number of rows."
+
     def to(self, device: torch.device):
         self.real_spectra = self.real_spectra.to(device) # type: ignore
         self.real_labels = self.real_labels.to(device)

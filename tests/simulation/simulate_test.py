@@ -28,7 +28,7 @@ class simulationTest(unittest.TestCase):
         torch.manual_seed(RANDOM_SEED)
         sim_args = new_SimulationArgs()
 
-        classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args)
+        classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args, None)
 
         self.assertEqual(classes.shape, (sim_args.n_iters, sim_args.n_classes_in_subsets))
         self.assertEqual(cumsum_n_components.shape, (sim_args.n_iters, sim_args.n_classes_in_subsets + 1))
@@ -85,15 +85,15 @@ class simulationTest(unittest.TestCase):
             sim_args = new_SimulationArgs()
             sim_args.min_frac = float('inf')
             sim_args.alpha = 0.1
-            data_args = DataArgs(torch.ones((120,10), dtype=torch.float32), torch.tensor(list(range(11))*12))
+            data_args = DataArgs(torch.ones((120,10), dtype=torch.float32), torch.tensor(list(range(10))*12))
 
             received_alpha = None
             received_size = ()
             received_cumsum_tensor = torch.tensor([])
-            classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args)
+            classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args, None)
             expected_size = (sim_args.n_iters, int(cumsum_n_components.max().item()))
 
-            def mock_init_simulation_state(_: SimulationArgs):
+            def mock_init_simulation_state(_: SimulationArgs, __):
                 return classes, cumsum_n_components
             
             def mock_alpha(size, c, a, al, au):
@@ -135,14 +135,14 @@ class simulationTest(unittest.TestCase):
         with self.subTest("test_function_receives_expected_input"):
             # The dirichlet functions needs to be provided a number of alphas that correspond to the number of components to be simulated
             sim_args = new_SimulationArgs()
-            data_args = DataArgs(torch.ones((120,10), dtype=torch.float32), torch.tensor(list(range(11))*12))
+            data_args = DataArgs(torch.ones((120,10), dtype=torch.float32), torch.tensor(list(range(10))*12))
 
             received_alphas = torch.tensor([])
             received_min_frac = None
-            classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args)
+            classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args, None)
             m = int(cumsum_n_components.max().item())
 
-            def mock_init_simulation_state(_: SimulationArgs):
+            def mock_init_simulation_state(_: SimulationArgs, __):
                 return classes, cumsum_n_components
 
             def mock_dirichlet(alpha, min_frac):
@@ -167,6 +167,11 @@ class simulationTest(unittest.TestCase):
         simulate._3_remove_small_fractions(dirich_fractions, mask)
         self.assertTrue((dirich_fractions[:, :2] == 0.5).all().item())
         self.assertTrue((dirich_fractions[:, 2:] == 0).all().item())
+
+        mask[:, :2] = False
+        simulate._3_remove_small_fractions(dirich_fractions, mask)
+        self.assertTrue(mask.sum(), mask.shape[0])
+        self.assertTrue((dirich_fractions == 1).sum(), mask.shape[0])
 
 
     def test_4_stratified_split(self):
@@ -227,7 +232,7 @@ class simulationTest(unittest.TestCase):
             classes = torch.tensor([[1, 2]], dtype=torch.int8)
             cumsum_n_components = torch.tensor([[1, 3]], dtype=torch.int32)
 
-            def mock_init_sim_state(_: SimulationArgs):
+            def mock_init_sim_state(_: SimulationArgs, __):
                 return classes, cumsum_n_components
             
             captured = {"filtered_n_components_per_class": None, "classes": None, "labels": None, "n_classes": None,
@@ -290,19 +295,16 @@ class simulationTest(unittest.TestCase):
 
         with self.subTest("test_function_works_as_expected"):
             n_components = 10
-            noise = simulate._6_add_noise(None, n_components, 0.)
+            noise = simulate._6_add_noise(None, n_components, 0., None)
             torch.testing.assert_close(noise, torch.zeros(n_components))
 
             N = 10
             cov = torch.eye(N)
-            noise = simulate._6_add_noise(cov, n_components, 0.4)
+            noise = simulate._6_add_noise(cov, n_components, 0.4, None)
             self.assertEqual(noise.shape, (N,))
-
-            noise = simulate._6_add_noise(torch.ones(N), n_components, 0.4)
-            self.assertEqual(noise.shape, (N,))
-
 
         with self.subTest("test_function_receives_expected_input"):
+            N = 10
             cov = torch.eye(N)
 
             sim_args = SimulationArgs(
@@ -317,11 +319,11 @@ class simulationTest(unittest.TestCase):
                 white_noise=123.45,
                 noise_covariance=cov,
             )
-            data_args = DataArgs(torch.ones((120,10), dtype=torch.float32), torch.tensor(list(range(11))*12))
+            data_args = DataArgs(torch.ones((120,N), dtype=torch.float32), torch.tensor(list(range(10))*12))
 
             obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim = None, None, None
                                     
-            def mock_add_noise(sim_args_noise, wavelength_dim, white_noise_scale):
+            def mock_add_noise(sim_args_noise, wavelength_dim, white_noise_scale, _):
                 nonlocal obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim
                 obtained_noise_cov = sim_args_noise
                 obtained_white_noise = white_noise_scale
