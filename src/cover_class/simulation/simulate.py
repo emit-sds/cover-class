@@ -213,9 +213,9 @@ def _4_stratified_split( # type: ignore
 
         ### 3. Reshape the `selected_idxs` to the sameshape as `dirich_fractions` with all valid indices left-adjusted
         # (the issue is now we have a `selected_idxs` matrix of (N_iters, N_classes_per_sim, n_components_max) and we need (N_iters, max_cumsum_components))
-        indices = (torch 
+        indices = (torch.
             # (N_iters, max_cumsum_components) - same shape as `dirich_fractions`
-            .where(
+            where(
                 selection_mask.reshape(selected_idxs.size(0), -1),
                 torch.arange(selected_idxs.size(1), device=device).expand_as(selected_idxs), # (arange N_iters times)
                 selected_idxs.size(1)
@@ -275,7 +275,6 @@ def _6_add_noise(
         # add white noise
         white_noise = torch.normal(mean=means, std=float(white_noise_scale)) # same shape as sim_args_noise
         noise = noise + white_noise
-        # noise = torch.diag(noise) # take the diagonal
         
     else:
         noise = torch.zeros(wavelength_dim, dtype=torch.float32, device=device)
