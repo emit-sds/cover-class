@@ -1,174 +1,294 @@
 from typing import List, Optional, Tuple
 import numpy as np
 import numpy.typing as npt
-from torch import FloatTensor, ByteTensor
+from torch import (
+    BoolTensor,  # boolean
+    CharTensor,  # int8
+    FloatTensor, # float32
+    ShortTensor, # int16
+    IntTensor,   # int32
+    LongTensor,  # int64
+    Tensor,
+)
 import torch
+import torch.nn.functional as F
+from torch.distributions.dirichlet import Dirichlet
+from torch import device as Device
 
 from cover_class.simulation.args import SimulationArgs, DataArgs
 
 
-class _ctxblk:
-    def __enter__(self, *args): ...
-    def __exit__(self, *args): ...
-__ctxblk = _ctxblk()
+ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
+NULL_CLASS_VALUE = -1
 
 
-def run_simulation(sim_args: SimulationArgs, data_args: DataArgs) -> Tuple[FloatTensor, ByteTensor]:
-    spectra_result: List[npt.NDArray[np.float32]] = []
-    label_result:   List[npt.NDArray[np.uint8]] = []
-    classes, total_n_components, total_n_comp_idxs = _0_init_simulation_state(sim_args)
+def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
+    mask_pad = F.pad(mask.to(dtype=torch.int64, device=mask.device).cumsum_(dim=1), (1, 0), value=0) # pad left side with 0
+    s = (
+        mask_pad.gather(1, cumsum_n_components[:, 1:]) - 
+        mask_pad.gather(1, cumsum_n_components[:, :-1])
+    )
+    return s.to(dtype=torch.int16, device=mask.device) # type: ignore
 
-    alpha = _1_generate_alpha(sim_args.alpha, sim_args.alpha_uniform_low, sim_args.alpha_uniform_high, total_n_components.sum())
 
-    alpha_idx_start = 0
-    for i in range(sim_args.n_iters): # unfortunately, we need to iterate due to how each simulation has different component numbers
+def run_simulation(
+        sim_args:  SimulationArgs, 
+        data_args: DataArgs, 
+        device:    Device = Device("cpu")
+    
+    ) -> Tuple[FloatTensor, CharTensor]:
 
-        with __ctxblk: # get dirichlet samples
-            # (dirich_fractions, mask) are 1D vectors
-            dirich_fractions, mask = _2_generate_dirichlet_distribution(
-                alpha[alpha_idx_start: alpha_idx_start + total_n_components[i]], 
-                sim_args.min_frac
-            )
-            alpha_idx_start += total_n_components[i]
-            if not mask.any(): continue
+    sim_args.to(device)
+    data_args.to(device)
 
-        with __ctxblk: # remove small fractions and re-weigh the rest
-            dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
+    with torch.no_grad():
+        classes, cumsum_n_components = _0_init_simulation_state(sim_args, device)
 
-            n_components_iter = np.add.reduceat(mask, np.r_[0, total_n_comp_idxs[i]]) # gets the new number of components per class
-            classes_iter      = classes[i][n_components_iter.astype(np.bool_)]
+        simulation_space_size = (sim_args.n_iters, int(cumsum_n_components.max().item()))
+        alpha = _1_generate_alpha(
+            simulation_space_size,
+            cumsum_n_components,
+            sim_args.alpha,
+            sim_args.alpha_uniform_low, 
+            sim_args.alpha_uniform_high
+        )
+        
+        # dirich_fractions shape: (n_iters X max(cumsum_n_components))
+        # mask shape: (n_iters X max(cumsum_n_components))
+        dirich_fractions, mask = _2_generate_dirichlet_distribution(alpha, sim_args.min_frac)
+        del alpha
 
-        with __ctxblk: # split
-            spectra_subset, label_subset = _4_stratified_split(
-                data_args.real_spectra,
-                data_args.real_labels,
-                classes_iter,
-                n_components_iter, 
-            )
+        _3_remove_small_fractions(dirich_fractions, mask)
+        
+        filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
+        # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
+        classes.masked_fill_(~filtered_n_components_per_class.to(dtype=torch.bool, device=device), NULL_CLASS_VALUE)
+        del mask
 
-        with __ctxblk: # add in the noise
-            mixed_spectrum = np.sum(spectra_subset.T * dirich_fractions, axis=1, dtype=np.float32)
-            mixed_spectrum += _5_add_noise(
-                sim_args.noise_covariance,
-                data_args.real_spectra.shape[1], 
-                sim_args.white_noise
-            )
+        selected_idxs, spectra_mask = _4_stratified_split(
+            filtered_n_components_per_class,
+            classes,
+            data_args.real_labels,
+            sim_args.n_classes,
+            max(sim_args.n_components),
+            simulation_space_size[1],
+        )
 
-        spectra_result.append(mixed_spectrum)
-        label_result.append(label_subset)
+        resulting_real_spectra = _5_make_sim_spectra(
+            data_args.real_spectra,
+            selected_idxs, 
+            spectra_mask, 
+            dirich_fractions
+        )
 
-    if spectra_result:
-        spectra = torch.from_numpy(np.concatenate(spectra_result, axis=0)).to(dtype=torch.float32)
-        labels = torch.from_numpy(np.concatenate(label_result, axis=0)).to(dtype=torch.uint8)
-        return FloatTensor(spectra), ByteTensor(labels)
-    return FloatTensor(torch.tensor([], dtype=torch.float32)), ByteTensor(torch.tensor([], dtype=torch.uint8))
+        resulting_real_spectra += _6_add_noise(
+            sim_args.noise_covariance,
+            data_args.real_spectra.shape[1], 
+            sim_args.white_noise,
+            device
+        )
+
+        return resulting_real_spectra, classes # type: ignore[return-value]
 
 
 def _0_init_simulation_state(
-        sim_args: SimulationArgs
+        sim_args: SimulationArgs,
+        device:   Device
 
     ) -> Tuple[
-        npt.NDArray[np.uint8],  # classes
-        npt.NDArray[np.uint16], # total_n_components
-        npt.NDArray[np.uint16]  # total_n_comp_idxs
+        CharTensor, # classes
+        LongTensor  # cumsum_n_components
     ]:
     
     size = (sim_args.n_iters, sim_args.n_classes_in_subsets)
-    classes:            npt.NDArray[np.uint8]  = np.argpartition(np.random.random((size[0], sim_args.n_classes)), size[1], axis=1)[:, :size[1]].astype(np.uint8)
-    n_components:       npt.NDArray[np.uint16] = np.random.choice(sim_args.n_components, size, replace=True).astype(np.uint16)
-    total_n_comp_idxs:  npt.NDArray[np.uint16] = n_components.cumsum(axis=1, dtype=n_components.dtype)
-    total_n_components: npt.NDArray[np.uint16] = total_n_comp_idxs[:, -1]
-    total_n_comp_idxs = total_n_comp_idxs[:, :-1]
-    return classes, total_n_components, total_n_comp_idxs
-    
+
+    classes = (torch.
+        rand(sim_args.n_iters, sim_args.n_classes, device=device).
+        topk(size[1], dim=1, largest=False).
+        indices.to(dtype=torch.int8)
+    )
+
+    n_components_numpy: npt.NDArray[np.int32] = np.random.choice(sim_args.n_components, size, replace=True).astype(np.int32)
+
+    cumsum_n_components = (torch.
+        from_numpy(n_components_numpy).to(dtype=torch.int64, device=device).
+        cumsum_(dim=1)
+    )
+    cumsum_n_components = F.pad(cumsum_n_components, (1, 0), value=0)  # pad left size with zeros
+
+    return classes, cumsum_n_components # type: ignore[return-value]
+
 
 def _1_generate_alpha(
-        alpha:              Optional[float],
-        alpha_uniform_low:  float,
-        alpha_uniform_high: float,
-        array_len:          int
+        size:                Tuple[int, int],
+        cumsum_n_components: LongTensor,
+        a:                   Optional[float],
+        a_uniform_low:       float,
+        a_uniform_high:      float,
         
-    ) -> npt.NDArray[np.float16]:
+    ) -> FloatTensor:
+    device = cumsum_n_components.device
     
-    if alpha is not None:
-        return np.repeat(alpha, array_len).astype(np.float16)
+    if a is not None:
+        alpha = torch.full(size, a, dtype=torch.float32, device=device)
     else:
-        return np.random.uniform(alpha_uniform_low, alpha_uniform_high, array_len).astype(np.float16)
+        alpha = (a_uniform_low + ((a_uniform_high - a_uniform_low) * torch.rand(size, dtype=torch.float32, device=device)))
+
+    # Mask out all alpha values if they're index is greater than the number of components in their simulation
+    # The masked out value will be 2^-126, the IEEE 754 smallest positive float32 value
+    #       - `cumsum_n_components` substract by 1 since `cumsum_n_components` values are essentially 1-indexed
+    alpha_mask = torch.arange(alpha.shape[1], device=device).unsqueeze(0) > (cumsum_n_components[:, -1].view(-1, 1) - 1) 
+    alpha.masked_fill_(alpha_mask, ALPHA_MASKOUT_VALUE)
+    return alpha # type: ignore[return-value]
 
 
 def _2_generate_dirichlet_distribution(
-        alpha:    npt.NDArray[np.float16],
-        min_frac: float
+        alpha:    FloatTensor,
+        min_frac: float,
         
     ) -> Tuple[
-        npt.NDArray[np.float32], # dirich_fractions (1D vector)
-        npt.NDArray[np.bool_]    # mask (1D vector)
+        FloatTensor, # dirich_fractions
+        BoolTensor   # mask
     ]:
 
-    # len(dirich_fractions) = (total number of components for this simulation - variable per simulation)
-    dirich_fractions: npt.NDArray[np.float32] = np.random.dirichlet(alpha, 1).astype(np.float32).flatten()
-    mask:             npt.NDArray[np.bool_]   = dirich_fractions >= min_frac
-    return dirich_fractions, mask
+    dirich_fractions = Dirichlet(alpha).sample().to(alpha.device) # is already a float32
+    mask = dirich_fractions >= min_frac
+    return dirich_fractions, mask # type: ignore[return-value]
 
 
 def _3_remove_small_fractions(
-        dirich_fractions: npt.NDArray[np.float32], 
-        mask:             npt.NDArray[np.bool_]
+        dirich_fractions: FloatTensor, 
+        mask:             BoolTensor
         
-    ) -> npt.NDArray[np.float32]:
+    ) -> None:
+    # all operations are inplace
 
-    survivors = dirich_fractions[mask] # 1D vector
-    survivors /= survivors.sum()
-    return survivors
+    dirich_fractions.masked_fill_(~mask, 0)
+    dirich_fractions.div_(dirich_fractions.sum(dim=1)[:, None])
 
 
-def _4_stratified_split(
-        real_spectra: npt.NDArray[np.float32], 
-        real_labels:  npt.NDArray[np.uint8], 
-        classes:      npt.NDArray[np.uint8], 
-        n_components: npt.NDArray[np.uint16]
+def _4_stratified_split( # type: ignore
+        filtered_n_components_per_class: ShortTensor, 
+        classes: CharTensor,
+        labels: Tensor,
+        n_classes: int,
+        n_components_max: int,
+        dirichlet_2nd_dim_shape: int,
 
     ) -> Tuple[
-        npt.NDArray[np.float32], # spectra_subset
-        npt.NDArray[np.uint8]    # label_subset
+        IntTensor,   # selected_idxs
+        BoolTensor   # spectra_mask
     ]:
+        device = filtered_n_components_per_class.device
 
-    take_idx = []
-    for c, n in zip(classes, n_components):
-        idx = np.flatnonzero(real_labels == c)
-        take_idx.append(idx[np.random.choice(idx.size, size=n, replace=False)])
-    idx = np.concatenate(take_idx)
+        ### 1. Make a (N_classes, N_classes_per_sim, N_labels) matrix that's a boolean mask for if each data label is a specific class
+        unique_classes = torch.arange(n_classes, dtype=torch.int8, device=device)
+        is_class       = (unique_classes[:, None] == labels[None, :]).to(device)
+        assert (is_class.sum(dim=1) >= n_components_max).all(), f"All classes must have more than {n_components_max} labels"
 
-    return real_spectra[idx], real_labels[idx]
+        # (N_classes, N_labels) -> (N_iters, N_classes_per_sim, N_labels)
+        is_class = is_class[classes.to(dtype=torch.long, device=device)]
+        del unique_classes
+
+        ### 2. Randomly sample the indices for each class, for each time they'll be in a simulated set
+        selected_idxs = (torch.
+            # (N_iters, N_classes_per_sim, n_components_max) selected indices
+            rand(is_class.shape, device=device).
+            masked_fill_(~is_class, 0).
+            topk(n_components_max, dim=2).
+            indices
+        )
+        del is_class
+
+        # Only get the number of sample indices needed we're going to use for the simulation
+        selection_mask = torch.arange(n_components_max, device=device)[None,None,:] < filtered_n_components_per_class[..., None]
+        selected_idxs = (selected_idxs.
+            # (N_iters, N_classes_per_sim X n_components_max) selected indices
+            masked_fill_(~selection_mask, -1).
+            reshape(selected_idxs.size(0), -1)
+        )
+
+        ### 3. Reshape the `selected_idxs` to the sameshape as `dirich_fractions` with all valid indices left-adjusted
+        # (the issue is now we have a `selected_idxs` matrix of (N_iters, N_classes_per_sim, n_components_max) and we need (N_iters, max_cumsum_components))
+        indices = (torch 
+            # (N_iters, max_cumsum_components) - same shape as `dirich_fractions`
+            .where(
+                selection_mask.reshape(selected_idxs.size(0), -1),
+                torch.arange(selected_idxs.size(1), device=device).expand_as(selected_idxs), # (arange N_iters times)
+                selected_idxs.size(1)
+            ).
+            topk(dirichlet_2nd_dim_shape, largest=False).
+            indices
+        )
+        
+        selected_idxs = (selected_idxs.gather(1, indices).to(dtype=torch.int32, device=device)) # (N_iters, max_cumsum_components) - properly shaped selected indices
+        del indices, selection_mask
+
+        
+        spectra_mask = selected_idxs == -1 # mask out unwanted ids
+        selected_idxs[spectra_mask] = 0
+        
+        return selected_idxs, spectra_mask # type: ignore[return-value]
 
 
-def _5_add_noise(
-        sim_args_noise:    Optional[npt.NDArray[np.float32]],
+def _5_make_sim_spectra(
+        spectra:          FloatTensor,
+        selected_idxs:    IntTensor, 
+        spectra_mask:     BoolTensor,
+        dirich_fractions: FloatTensor
+        
+    ) -> Tensor:
+
+    resulting_real_spectra = ( # (N_iters, spectra_dim)
+        # get the spectra and 0 out the unused spectra
+        # (N_iters, max_cumsum_components, spectra_dim)
+        spectra.
+        index_select(0, selected_idxs.flatten()).
+        reshape(*selected_idxs.shape, -1).
+        masked_fill_(spectra_mask[..., None], 0).
+
+        # now multiply by `dirich_fractions`
+        # (N_iters, spectra_dim)
+        mul_(dirich_fractions.unsqueeze(-1)).
+        sum(dim=1)
+    )
+    return resulting_real_spectra
+
+
+def _6_add_noise(
+        sim_args_noise:    Optional[torch.FloatTensor],
         wavelength_dim:    int,
         white_noise_scale: float,
+        device:            Device
 
-    ) -> npt.NDArray[np.float32]:
+    ) -> FloatTensor:
     
     if sim_args_noise is not None:
-        if len(sim_args_noise.shape) < 2:
+
+        if sim_args_noise.dim() < 2:
             # option 1: scale diagonal std
-            weights = np.diag(sim_args_noise)
-            scale = np.random.normal(loc = 1)
-            means = np.zeros(weights.shape[0])
-            noise = np.random.multivariate_normal(means, weights * np.abs(scale), 1).ravel()
-            noise = noise * np.sign(scale)
+            weights = torch.diag(sim_args_noise)
+            scale = torch.distributions.Normal(
+                torch.tensor(1.0, device=device), torch.tensor(1.0, device=device)
+            ).sample(())
+            means = torch.zeros(weights.shape[0], dtype=weights.dtype, device=weights.device)
+            noise = torch.distributions.MultivariateNormal(
+                means, covariance_matrix=weights * torch.abs(scale)
+            ).sample().ravel()
+            noise = noise * torch.sign(scale)
         
         else:
             # option 2: use full smooth cov matrix
-            means = np.zeros(sim_args_noise.shape[0])
-            noise = np.random.multivariate_normal(means, sim_args_noise, 1).ravel()
+            means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
+            noise = torch.distributions.MultivariateNormal(
+                means, covariance_matrix=sim_args_noise
+            ).sample().ravel()
         
         # add white noise
-        white_noise =  np.random.normal(loc = means, scale = white_noise_scale)
+        white_noise = torch.normal(mean=means, std=float(white_noise_scale))
         noise = noise + white_noise
         
     else:
-        scale = 1
-        noise = np.zeros(wavelength_dim, dtype=np.float32)
+        noise = torch.zeros(wavelength_dim, dtype=torch.float32, device=device)
 
-    return noise.astype(np.float32)
+    return noise.to(dtype=torch.float32) # type: ignore[return-value]

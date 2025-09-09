@@ -1,8 +1,8 @@
 from msgspec import Struct
 from typing import List, Optional, Tuple, Dict
 import numpy as np
-import numpy.typing as npt
 from torch import FloatTensor, Tensor
+import torch
 
 from cover_class.utils import read_config
 
@@ -16,11 +16,19 @@ class SimulationArgs(Struct):
     alpha_uniform_low: float
     alpha_uniform_high: float
     white_noise: float
-    noise_covariance: Optional[npt.NDArray[np.float32]]
+    noise_covariance: Optional[FloatTensor]
+
+    def to(self, device: torch.device):
+        if self.noise_covariance is not None: 
+            self.noise_covariance = self.noise_covariance.to(device) # type: ignore
 
 class DataArgs(Struct):
-    real_spectra: npt.NDArray[np.float32]
-    real_labels: npt.NDArray[np.uint8]
+    real_spectra: FloatTensor
+    real_labels: Tensor
+
+    def to(self, device: torch.device):
+        self.real_spectra = self.real_spectra.to(device) # type: ignore
+        self.real_labels = self.real_labels.to(device)
 
 def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, batch_size:int) -> Tuple[SimulationArgs, DataArgs]:
     config = read_config(config)
@@ -28,7 +36,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
     n_classes = sum(map(bool, config['datasets'].values()))
     noise_cov = None
     if sim_config['noise_covariance_csv']:
-        assert str(sim_config['noise_covariance_csv']).endswith('csv'), f'Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}'
+        assert str(sim_config['noise_covariance_csv']).endswith('csv'), f"Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}"
         noise_cov = np.genfromtxt(sim_config['noise_covariance_csv'], delimiter=',', dtype=float)
 
     s = SimulationArgs(
@@ -41,11 +49,11 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         alpha_uniform_low = sim_config['alpha_uniform_low'],
         alpha_uniform_high = sim_config['alpha_uniform_high'],
         white_noise = sim_config['white_noise'],
-        noise_covariance = noise_cov
+        noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32))
     )
 
     d = DataArgs(
-        real_spectra = data_matrix.cpu().numpy(),
-        real_labels = labels.cpu().numpy()
+        real_spectra = data_matrix,
+        real_labels = labels
     )
     return s, d
