@@ -295,13 +295,13 @@ class simulationTest(unittest.TestCase):
 
         with self.subTest("test_function_works_as_expected"):
             n_components = 10
-            noise = simulate._6_add_noise(None, n_components, 0., None)
-            torch.testing.assert_close(noise, torch.zeros(n_components))
+            noise = simulate._6_add_noise(None, 1, n_components, 0., None)
+            torch.testing.assert_close(noise, torch.zeros((1, n_components,)))
 
             N = 10
             cov = torch.eye(N)
-            noise = simulate._6_add_noise(cov, n_components, 0.4, None)
-            self.assertEqual(noise.shape, (N,))
+            noise = simulate._6_add_noise(cov, 1, n_components, 0.4, None)
+            self.assertEqual(noise.shape, (1, N))
 
         with self.subTest("test_function_receives_expected_input"):
             N = 10
@@ -321,13 +321,14 @@ class simulationTest(unittest.TestCase):
             )
             data_args = DataArgs(torch.ones((120,N), dtype=torch.float32), torch.tensor(list(range(10))*12))
 
-            obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim = None, None, None
+            obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim, obtained_n_iters = None, None, None, None
                                     
-            def mock_add_noise(sim_args_noise, wavelength_dim, white_noise_scale, _):
-                nonlocal obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim
+            def mock_add_noise(sim_args_noise, n_iters, wavelength_dim, white_noise_scale, _):
+                nonlocal obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim, obtained_n_iters
                 obtained_noise_cov = sim_args_noise
                 obtained_white_noise = white_noise_scale
                 obtained_wavelength_dim = wavelength_dim
+                obtained_n_iters = n_iters
                 return torch.zeros(wavelength_dim)
             
             with patch("cover_class.simulation.simulate._6_add_noise", side_effect=mock_add_noise):
@@ -336,9 +337,11 @@ class simulationTest(unittest.TestCase):
             self.assertIsNotNone(obtained_noise_cov)
             self.assertIsNotNone(obtained_white_noise)
             self.assertIsNotNone(obtained_wavelength_dim)
+            self.assertIsNotNone(obtained_n_iters)
             torch.testing.assert_close(obtained_noise_cov, cov)
             self.assertEqual(obtained_white_noise, sim_args.white_noise)
             self.assertEqual(obtained_wavelength_dim, data_args.real_spectra.shape[1])
+            self.assertEqual(obtained_n_iters, sim_args.n_iters)
 
 
 

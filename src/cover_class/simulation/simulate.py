@@ -59,7 +59,7 @@ def run_simulation(
         dirich_fractions, mask = _2_generate_dirichlet_distribution(alpha, sim_args.min_frac)
         del alpha
 
-        _3_remove_small_fractions(dirich_fractions, mask)
+        dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
         
         filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
         # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
@@ -81,9 +81,11 @@ def run_simulation(
             spectra_mask, 
             dirich_fractions
         )
+        del selected_idxs, spectra_mask
 
         resulting_real_spectra += _6_add_noise(
             sim_args.noise_covariance,
+            sim_args.n_iters,
             data_args.real_spectra.shape[1], 
             sim_args.white_noise,
             device
@@ -160,15 +162,16 @@ def _3_remove_small_fractions(
         dirich_fractions: FloatTensor, 
         mask:             BoolTensor
         
-    ) -> None:
+    ) -> FloatTensor:
     # all operations are inplace
-
     r = (mask.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
     mask[r, dirich_fractions.argmax(dim=1)[r]] = True # guarantees at least 1 class per simulation
 
     dirich_fractions.masked_fill_(~mask, 0)
     dirich_fractions.div_(dirich_fractions.sum(dim=1)[:, None])
 
+    # now we need to align the matrix again
+    return dirich_fractions.gather(1, (dirich_fractions != 0).int().argsort(descending=True)) # type: ignore[return-value]
 
 def _4_stratified_split(
         filtered_n_components_per_class: ShortTensor, 
@@ -260,6 +263,7 @@ def _5_make_sim_spectra(
 
 def _6_add_noise(
         sim_args_noise:    Optional[torch.FloatTensor],
+        n_iters:           int,
         wavelength_dim:    int,
         white_noise_scale: float,
         device:            Device
@@ -270,16 +274,17 @@ def _6_add_noise(
         if not (torch.linalg.eigvals(sim_args_noise).real>=0).all():
             sim_args_noise = make_positive_definite(sim_args_noise)
         means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
-        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample() # same shape as sim_args_noise
+        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,))
         
         # add white noise
-        white_noise = torch.normal(mean=means, std=float(white_noise_scale)) # same shape as sim_args_noise
+        white_noise = torch.normal(mean=means.expand(n_iters, -1), std=float(white_noise_scale))
         noise = noise + white_noise
         
     else:
-        noise = torch.zeros(wavelength_dim, dtype=torch.float32, device=device)
+        noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device)
 
-    return noise.to(dtype=torch.float32) # type: ignore[return-value]
+    return noise.to(dtype=torch.float32)  # type: ignore[return-value]
+
 
 
 def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:
