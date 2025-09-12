@@ -94,6 +94,7 @@ def generate_hdf5_from_config(config_path:str) -> None:
             else: file_wavelengths, spectra = download(location)
 
             # 2. interpolate the wavelengths
+            spectra = spectra[~np.isnan(spectra).any(axis=1)]
             spectra_interp, target_wavelengths = interior_interpolation(spectra, file_wavelengths)
 
             # 3. save hdf5 file
