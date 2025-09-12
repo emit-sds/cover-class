@@ -70,7 +70,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
 
     HDF5 output location: '{outpath}/{name of class from config file}_{original data filename}.hdf5'
     '''
-    ofn = Path(original_path).name
+    ofn = Path(original_path).stem
     outname = Path(outpath)/f'{class_}_{ofn}.hdf5'
     with h5py.File(outname, 'w') as f:
         f.create_dataset('spectra', data=spectra)
@@ -87,6 +87,7 @@ def generate_hdf5_from_config(config_path:str) -> None:
     assert Path(outdir).is_dir(), f"'output-directory': {outdir} is not a directory"
 
     for d in (ds_classes := ds['classes']):
+        if ds_classes[d] == None: continue
         for location in ds_classes[d]:
             # 1. get the wavelength and spectra from the locations
             if Path(location).is_file(): file_wavelengths, spectra = vfs_csv(location)
@@ -100,7 +101,7 @@ def generate_hdf5_from_config(config_path:str) -> None:
                 location, 
                 outdir, 
                 d, 
-                torch.from_numpy(target_wavelengths).to(torch.float32), 
+                target_wavelengths, 
                 spectra_interp
             )
             print(f"Wrote file {outname}")
