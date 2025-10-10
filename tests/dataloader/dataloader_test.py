@@ -66,7 +66,7 @@ class dataloaderTest(unittest.TestCase):
         torch.manual_seed(RANDOM_SEED)
         data = torch.ones((bsz, dims))
         labels = torch.arange(bsz)
-        def mock_run_simulation(_cfg, _data): return data, labels
+        def mock_run_simulation(_cfg, _data): return data, labels, None
 
         args = make_odsa(bsz, 0.0, object(), object(), None, None)
 
@@ -75,7 +75,7 @@ class dataloaderTest(unittest.TestCase):
             dl = DataLoader(ds, batch_size=None)
 
             i = 0
-            for X, Y in dl:
+            for X, Y, _ in dl:
                 self.assertTrue(ds.is_simulated_batch)
                 self.assertIsInstance(X, torch.FloatTensor)
                 self.assertEqual(X.shape, (bsz, dims))
@@ -104,7 +104,7 @@ class dataloaderTest(unittest.TestCase):
         seen_labels = []
 
         i, t = 0, 0
-        for X, Y in dl:
+        for X, Y, _ in dl:
             i += 1; t += 1
             if i == (N//bsz): i = 0
             if t == (N//bsz)*epochs: break
@@ -133,7 +133,7 @@ class dataloaderTest(unittest.TestCase):
         static_labels = torch.arange(bsz)
         sim_data = static_data + 3
         sim_labels = static_labels + 3
-        def mock_run_simulation(_cfg, _data): return sim_data, sim_labels
+        def mock_run_simulation(_cfg, _data): return sim_data, sim_labels, None
 
         args = make_odsa(bsz, percent_static, object(), object(), static_data, static_labels)
 
@@ -144,7 +144,7 @@ class dataloaderTest(unittest.TestCase):
             static_count = 0
             sim_count = 0
             i = 0
-            for X, Y in dl:
+            for X, Y, _ in dl:
                 if ods.is_simulated_batch:
                     sim_count += 1
                     self.assertTrue(torch.allclose(X, sim_data))
