@@ -38,7 +38,7 @@ def run_simulation(
         return_fractions: bool = False,
         device:    Device = Device("cpu")
     
-    ) -> Tuple[FloatTensor, CharTensor, Optional[FloatTensor]]:
+    ) -> Tuple[FloatTensor, LongTensor, Optional[FloatTensor]]:
 
     sim_args.to(device)
     data_args.to(device)
@@ -93,8 +93,8 @@ def run_simulation(
         )
 
         if return_fractions:
-            return resulting_real_spectra, classes, dirich_fractions # type: ignore[return-value]
-        return resulting_real_spectra, classes, None # type: ignore[return-value]
+            return resulting_real_spectra, classes.long(), dirich_fractions # type: ignore[return-value]
+        return resulting_real_spectra, classes.long(), None # type: ignore[return-value]
 
 
 def _0_init_simulation_state(
