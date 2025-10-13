@@ -35,7 +35,6 @@ def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTe
 def run_simulation(
         sim_args:  SimulationArgs, 
         data_args: DataArgs, 
-        return_fractions: bool = False,
         device:    Device = Device("cpu")
     
     ) -> Tuple[FloatTensor, LongTensor, Optional[FloatTensor]]:
@@ -92,7 +91,7 @@ def run_simulation(
             device
         )
 
-        if return_fractions:
+        if sim_args.return_fractions:
             return resulting_real_spectra, classes.long(), dirich_fractions # type: ignore[return-value]
         return resulting_real_spectra, classes.long(), None # type: ignore[return-value]
 

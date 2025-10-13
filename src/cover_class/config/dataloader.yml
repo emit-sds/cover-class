@@ -19,5 +19,6 @@ simulation:
   alpha_uniform_high: 10.
   white_noise: 0.0001
   noise_covariance_csv: example.csv
+  return_fractions: false
 dataloader:
   percent-static-data: 0.5
