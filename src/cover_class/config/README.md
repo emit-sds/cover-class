@@ -40,4 +40,17 @@ simulation:
   alpha:                <alpha parameter for Dirichlet distribution [float]>
   min-frac:             <minimum fraction of class presence to be included in simulation [float]>
   noise-file:           <path to noise CSV file of covariances [string]>
+subsample:
+  test-fraction:   <test data split fraction [float]>
+  selected-method: <subsampling method to use [string]>
+  convex-hull:
+    ...
+  kmeans:
+    ...
+  kmedoids:
+    ...
+  lhs:
+    ...
 ```
+
+All of the fields in each of the `subsample` methods in the `dataloader.yml` are the names of a parameter and the value of that parameter to be passed into the corresponding subsampling function
