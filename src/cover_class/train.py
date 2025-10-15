@@ -6,7 +6,7 @@ import h5py # type: ignore[import]
 
 from cover_class.dataloader import dataloader_from_config
 from cover_class.utils import read_config
-from cover_class.subsample import subsample_from_config, train_test_split
+from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
 
 def setup_training_from_config(
         config: str|Dict, 
@@ -20,6 +20,7 @@ def setup_training_from_config(
     train_spectra, train_labels, test_spectra, test_labels = Tensor(), Tensor(), Tensor(), Tensor()
 
     config = read_config(config)
+    drop_bands = config['drop-bands-wavelengths']
     for i, d in enumerate(config['datasets']):
         hdf5_list = config['datasets'][d]
         if hdf5_list is None: continue
@@ -28,6 +29,8 @@ def setup_training_from_config(
         for hdf5 in hdf5_list:
             with h5py.File(hdf5, 'r') as f:
                 file_spectra = f['spectra'][:]
+                file_wavelengths = f.attrs['wavelengths']
+                file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
                 subsampled_spectra = subsample_from_config(config, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
