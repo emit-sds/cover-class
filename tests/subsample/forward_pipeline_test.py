@@ -51,5 +51,18 @@ class subsampleTest(unittest.TestCase):
         self.assertIsInstance(y_train, torch.Tensor)
         self.assertIsInstance(y_test, torch.Tensor)
 
+    def test_drop_bad_bands(self):
+        banddef = torch.tensor([400, 500, 600, 700, 800], dtype=torch.float32)
+        data_matrix = torch.arange(10, dtype=torch.float32).reshape(2, 5)
+        drop_wl_ranges = [[450, 650], [800, 800]]  # Drop 500–600 nm bands and 800 nm band
+
+        result = forward_pipeline.drop_bad_bands(data_matrix, banddef, drop_wl_ranges)
+
+        expected = torch.tensor([[0, 3],
+                                 [5, 8]], dtype=torch.float32)
+
+        self.assertTrue(torch.equal(result, expected))
+        self.assertEqual(result.shape, expected.shape)
+
 if __name__ == "__main__":
     unittest.main()

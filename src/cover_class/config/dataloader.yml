@@ -1,5 +1,8 @@
 version: v0
 tags: initial-config classes[]
+drop-bands-wavelengths: # needs to be a list of tuples
+  - [5, 5] # for one-band items
+  - [10, 200]
 datasets:
   soil:
     - /some/path.hdf5
