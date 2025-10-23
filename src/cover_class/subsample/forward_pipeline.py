@@ -1,4 +1,5 @@
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Dict, Optional, List
+import torch
 import torch
 from torch import FloatTensor, Tensor
 from numpy.typing import NDArray
@@ -10,24 +11,6 @@ from cover_class.subsample.subsampler import convex_hull, kmeans, kmedoids, lhs
 
 def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float, seed: int=42) -> Tuple[FloatTensor, FloatTensor, Tensor, Tensor]:
     return tts(data_matrix, labels, test_size=frac_test, random_state=seed)
-
-def drop_bad_bands(
-        data_matrix: FloatTensor,
-        banddef: Tensor, 
-        drop_wl_ranges: Optional[List[List[int]]] = None,
-    ) -> FloatTensor:
-    """
-    References https://github.com/emit-sds/SpecTf/blob/main/spectf/utils.py#L69
-    Removes bands/wavelengths of high uncertainty from a single spectra
-    or an array of spectras.
-    """
-    if drop_wl_ranges is None or not len(drop_wl_ranges):
-        return data_matrix
-    
-    mask = torch.ones_like(banddef, dtype=torch.bool)
-    for low, high in drop_wl_ranges:
-        mask ^= (banddef >= low) & (banddef <= high)
-    return FloatTensor(data_matrix[..., mask])
 
 def subsample_from_config(
         config:str|Dict, 
@@ -49,3 +32,22 @@ def subsample_from_config(
         case _:
             return FloatTensor(torch.from_numpy(data_matrix).to(torch.float32))
     return FloatTensor() # here for mypy
+
+def drop_bad_bands(
+        data_matrix: NDArray[np.float32],
+        banddef: NDArray, 
+        drop_wl_ranges: Optional[List[List[int]]] = None,
+    ) -> NDArray[np.float32]:
+    """
+    References https://github.com/emit-sds/SpecTf/blob/main/spectf/utils.py#L69
+    Removes bands/wavelengths of high uncertainty from a single spectra
+    or an array of spectras.
+    """
+    if drop_wl_ranges is None or not len(drop_wl_ranges):
+        return data_matrix
+    
+    mask = np.ones_like(banddef, dtype=bool)
+    for low, high in drop_wl_ranges:
+        mask ^= (banddef >= low) & (banddef <= high)
+    spectra = np.delete(data_matrix, ~mask, axis=-1)
+    return spectra

@@ -56,7 +56,7 @@ class subsampleTest(unittest.TestCase):
         data_matrix = torch.arange(10, dtype=torch.float32).reshape(2, 5)
         drop_wl_ranges = [[450, 650], [800, 800]]  # Drop 500–600 nm bands and 800 nm band
 
-        result = forward_pipeline.drop_bad_bands(data_matrix, banddef, drop_wl_ranges)
+        result = forward_pipeline.drop_bad_bands(data_matrix.numpy(), banddef.numpy(), drop_wl_ranges)
 
         expected = torch.tensor([[0, 3],
                                  [5, 8]], dtype=torch.float32)
