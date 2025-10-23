@@ -19,6 +19,7 @@ class OrchestratorDatasetArgs(Struct):
     static_data: Optional[torch.FloatTensor]
     static_labels: Optional[torch.Tensor]
 
+    num_classes: int = field(default=0)
     _using_static: bool = field(default=False)
     _using_sim: bool   = field(default=False)
 
@@ -33,7 +34,13 @@ class OrchestratorDatasetArgs(Struct):
         elif not self._using_static: self.percent_static = 0.
         assert (self.percent_static is not None) and (0. <= self.percent_static <= 100.), "'percent_static' needs to be between [0, 100]"
 
-        self._method_selection_idxs[:int(self.percent_static)] = 1
+        self.num_classes = self.sim_config_args.n_classes if self.sim_config_args.n_classes else len(torch.unique(self.static_labels))
+
+        self._method_selection_idxs[:int(self.percent_static*100)] = 1
+        self._shuffle_method_selection_idxs()
+
+    def _shuffle_method_selection_idxs(self):
+        self._method_selection_idxs = self._method_selection_idxs[torch.randperm(self._method_selection_idxs.size(0))]
 
 
 class OrchestratorDataset(IterableDataset):
@@ -70,6 +77,15 @@ class OrchestratorDataset(IterableDataset):
 
     def __iter__(self) -> Iterator[Tuple[torch.FloatTensor, torch.Tensor]]:
         ''' This iterator does not stop '''
+        def make_one_hot(y:torch.Tensor) -> torch.Tensor:
+            if self.is_simulated_batch:
+                # 2D one-hot
+                out = torch.zeros(y.size(0), self.args.num_classes, dtype=torch.double, device=y.device)
+                out.scatter_add_(dim=1, index=y.clamp(0), src=(y >= 0).double())
+                out.clamp_(max=1)
+                return out
+            return torch.nn.functional.one_hot(y, num_classes=self.args.num_classes).double()
+
         while True:
             self.step += 1
             if self.args._using_static and self.__use_static_predicate__():
@@ -82,23 +98,27 @@ class OrchestratorDataset(IterableDataset):
                 self.static_samples_seen += len(idx)
                 if end >= len(self.args.static_data)-1: # type: ignore
                     self.__reset__()
-                yield self.args.static_data[idx], self.args.static_labels[idx] # type: ignore
+                
+                labels = make_one_hot(self.args.static_labels[idx])# type: ignore
+                yield self.args.static_data[idx], labels # type: ignore
 
             elif self.args._using_sim:
                 self.is_simulated_batch = True
                 # mypy doesn't catch self.args._using_sim
-                yield sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+                data, labels = sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+                yield data, make_one_hot(labels)
 
             else: raise StopIteration()
-            
+
     def __shuffle__(self) -> None:
         if self.shuffle:
             self._static_idx_order = LongTensor(torch.randperm(
-                self.args.static_labels.nelement(), # type: ignore # caller's responsibility
+                self.args.static_labels.size(0), # type: ignore # caller's responsibility
                 device=self.args.static_labels.device, # type: ignore
                 dtype=torch.int64, 
             ))
-        
+            self.args._shuffle_method_selection_idxs()
+
     def __reset__(self) -> None:
         self.static_epoch += 1
         self.static_epoch_step = 0
@@ -111,13 +131,13 @@ class OrchestratorDataset(IterableDataset):
 def dataloader_from_config(
         config: Dict|str, 
         spectra:FloatTensor,
-        labels:Tensor,
+        labels:LongTensor,
         batch_size:int,
         shuffle: bool = True, 
     ) -> DataLoader:
 
     config = read_config(config)
-    sim_config_args, sim_data_args = args_from_config(config, spectra, labels, batch_size)
+    sim_config_args, sim_data_args = args_from_config(config, spectra, labels.long(), batch_size)
 
     ods_args = OrchestratorDatasetArgs(
         batch_size,
@@ -125,7 +145,7 @@ def dataloader_from_config(
         sim_config_args,
         sim_data_args,
         spectra,
-        labels
+        labels.long()
     )
     ods = OrchestratorDataset(ods_args, shuffle)
     return DataLoader(ods, batch_size=None)
