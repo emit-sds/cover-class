@@ -45,6 +45,7 @@ subsample:
     random_state:
   lhs:
     num_pc: 1
+    n_samples: 10
     hypercubes_per_dimension: 3
     samples_per_hypercube: 3
 dataloader:
