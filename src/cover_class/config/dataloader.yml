@@ -1,5 +1,8 @@
 version: v0
 tags: initial-config classes[]
+drop-bands-wavelengths: # needs to be a list of tuples
+  - [5, 5] # for one-band items
+  - [10, 200]
 datasets:
   soil:
     - /some/path.hdf5
@@ -19,6 +22,35 @@ simulation:
   alpha_uniform_high: 10.
   white_noise: 0.0001
   noise_covariance_csv: example.csv
+subsample:
+  test-fraction: 0.2
+  selected-method: convex-hull
+  convex-hull:
+    num_pc: 1
+    n_samples: 10
+    qhull_options:
+  kmeans:
+    num_pc: 1
+    n_samples: 10
+    init:
+    n_init:
+    max_iter:
+    tol:
+    random_state:
+    algorithm:
+  kmedoids:
+    num_pc: 1
+    n_samples: 10
+    metric:
+    method:
+    init:
+    max_iter:
+    random_state:
+  lhs:
+    num_pc: 1
+    n_samples: 10
+    hypercubes_per_dimension: 3
+    samples_per_hypercube: 3
   return_fractions: false
 dataloader:
   percent-static-data: 0.5
