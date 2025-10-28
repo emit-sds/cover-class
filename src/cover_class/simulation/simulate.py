@@ -310,14 +310,14 @@ def get_fractions_by_class(
     # Returns a (n_iter, n_classes) matrix of the sum of dirichlet constributions per class
     
     # first get the dirichlet fractions by number of components
-    R, N = filtered_n_components_per_class.shape
-    M = dirich_fractions.size(1)
+    n_iters, n_classes_per_sim = filtered_n_components_per_class.shape
+    n_max_sim_comps = dirich_fractions.size(1)
     ends = filtered_n_components_per_class.cumsum(1) # (R, N)
-    pos  = torch.arange(M, device=dirich_fractions.device).expand(R, M)
-    grp  = torch.searchsorted(ends, pos, right=True)
+    pos = torch.arange(n_max_sim_comps, device=dirich_fractions.device).expand(n_iters, n_max_sim_comps)
+    grp = torch.searchsorted(ends, pos, right=True)
     fmask = pos < ends[:, -1:]
-    summed_fracs = dirich_fractions.new_zeros(R, N)
-    summed_fracs.scatter_add_(1, grp.clamp_max(N-1), dirich_fractions * fmask)
+    summed_fracs = dirich_fractions.new_zeros(n_iters, n_classes_per_sim)
+    summed_fracs.scatter_add_(1, grp.clamp_max(n_classes_per_sim-1), dirich_fractions * fmask)
 
     # then assign each of those to a class (one-hot)
     valid = classes >= 0
