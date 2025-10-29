@@ -1,9 +1,11 @@
+from typing import Tuple
 import unittest
 from unittest.mock import patch
 import torch
 from torch.utils.data import DataLoader
 
 from cover_class.dataloader import OrchestratorDataset, OrchestratorDatasetArgs # type: ignore[import]
+from cover_class.simulation import SimulationArgs, DataArgs
 
 RANDOM_SEED = 42
 
@@ -17,46 +19,62 @@ def make_odsa(bsz, percent, s, d, sd, sl) -> OrchestratorDatasetArgs:
         static_labels = sl,
     )
 
+def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
+    return (
+    SimulationArgs(
+        n_iters = 100,
+        n_classes_in_subsets = 5,
+        n_classes = 10,
+        n_components = list(range(10)),
+        min_frac = 0.,
+        alpha = None,
+        alpha_uniform_low = 0.,
+        alpha_uniform_high = 0.,
+        white_noise = 0.,
+        noise_covariance = None
+    ),
+    None)
+    # DataArgs(torch.tensor([.1, .2, .3]), torch.tensor([.1, .2, .3])))
 
 class dataloaderTest(unittest.TestCase):
 
     def test_OrchestratorDatasetArgs(self):
         data = torch.randn(10, 5, dtype=torch.float32)
         labels = torch.randint(0, 3, (10,), dtype=torch.long)
+        sim_args, data_args = new_sim_args()
 
         with self.subTest("static_only_forces_100_percent_check"):
-            args = make_odsa(10, 0., None, None, data, labels)
+            args = make_odsa(10, 0., sim_args, data_args, data, labels)
             self.assertTrue(args._using_static)
             self.assertFalse(args._using_sim)
-            self.assertEqual(args.percent_static, 100.0)
+            self.assertEqual(args.percent_static, 1.00)
             self.assertTrue(torch.all(args._method_selection_idxs == 1))
 
         with self.subTest("simulation_only_forces_0_percent_check"):
-            args = make_odsa(10, 100., object(), object(), None, None)
+            args = make_odsa(10, 1.00, sim_args, object(), None, None)
             self.assertFalse(args._using_static)
             self.assertTrue(args._using_sim)
             self.assertEqual(args.percent_static, 0.0)
             self.assertTrue(torch.all(args._method_selection_idxs == 0))
 
         with self.subTest("valid_simulation_and_static_data_check"):
-            percent = 33.7
-            args = make_odsa(10, percent, object(), object(), data, labels)
+            percent = .337
+            args = make_odsa(10, percent, sim_args, object(), data, labels)
             self.assertTrue(args._using_static)
             self.assertTrue(args._using_sim)
             self.assertEqual(args.percent_static, percent)
-            self.assertTrue(torch.all(args._method_selection_idxs[:int(percent)] == 1))
-            self.assertTrue(torch.all(args._method_selection_idxs[int(percent):] == 0))
+            self.assertEqual(int(args._method_selection_idxs.sum()), int(percent*100))
 
         with self.subTest("percent_boundaries_check"):
-            for percent in (0.0, 100.0):
-                args = make_odsa(10, percent, object(), object(), data, labels)
+            for percent in (0.0, 1.00):
+                args = make_odsa(10, percent, sim_args, object(), data, labels)
                 self.assertEqual(args.percent_static, percent)
-                self.assertEqual(int(args._method_selection_idxs.sum()), int(percent))
+                self.assertEqual(int(args._method_selection_idxs.sum()), int(percent*100))
 
         with self.subTest("assertion_clauses_check"):
             self.assertRaises(AssertionError, make_odsa, 10, 0., None, None, None, None)
-            self.assertRaises(AssertionError, make_odsa, 10, -.1, object(), object(), object(), object())
-            self.assertRaises(AssertionError, make_odsa, 10, 100.1, object(), object(), object(), object())
+            self.assertRaises(AssertionError, make_odsa, 10, -.1, sim_args, object(), object(), object())
+            self.assertRaises(AssertionError, make_odsa, 10, 1.01, sim_args, object(), object(), object())
 
 
     def test_OrchestratorDataset_simulated_only(self):
@@ -65,10 +83,11 @@ class dataloaderTest(unittest.TestCase):
 
         torch.manual_seed(RANDOM_SEED)
         data = torch.ones((bsz, dims))
-        labels = torch.arange(bsz)
+        labels = torch.zeros((bsz,dims), dtype=torch.int32)
+        sim_args, data_args = new_sim_args()
         def mock_run_simulation(_cfg, _data): return data, labels
 
-        args = make_odsa(bsz, 0.0, object(), object(), None, None)
+        args = make_odsa(bsz, 0.0, sim_args, object(), None, None)
 
         with patch("cover_class.simulation.run_simulation", side_effect=mock_run_simulation):
             ds = OrchestratorDataset(args)
@@ -80,7 +99,8 @@ class dataloaderTest(unittest.TestCase):
                 self.assertIsInstance(X, torch.FloatTensor)
                 self.assertEqual(X.shape, (bsz, dims))
                 self.assertTrue(torch.allclose(X, data))
-                self.assertTrue(torch.equal(Y, labels))
+                self.assertTrue(torch.all(Y[:, 0] == 1)) # testing the labels this way since they're one-hot
+                self.assertTrue(torch.all(Y[:, 1:] == 0))
                 self.assertEqual(ds.static_epoch, 0)
                 self.assertEqual(ds.static_epoch_step, 0)
                 self.assertEqual(ds.step, i+1)
@@ -96,6 +116,7 @@ class dataloaderTest(unittest.TestCase):
         data = torch.arange(N * dims, dtype=torch.float32).reshape(N, dims)
         labels = torch.arange(N, dtype=torch.long)
 
+        # sim_args, data_args = new_sim_args()
         args = make_odsa(bsz, 100.0, None, None, data, labels)
         ods = OrchestratorDataset(args, shuffle=True)
         dl = DataLoader(ods, batch_size=None)
@@ -135,7 +156,8 @@ class dataloaderTest(unittest.TestCase):
         sim_labels = static_labels + 3
         def mock_run_simulation(_cfg, _data): return sim_data, sim_labels
 
-        args = make_odsa(bsz, percent_static, object(), object(), static_data, static_labels)
+        sim_args, data_args = new_sim_args()
+        args = make_odsa(bsz, percent_static, sim_args, data_args, static_data, static_labels)
 
         with patch("cover_class.simulation.run_simulation", side_effect=mock_run_simulation):
             ods = OrchestratorDataset(args, shuffle=True)
@@ -159,3 +181,7 @@ class dataloaderTest(unittest.TestCase):
 
             self.assertEqual(static_count, int(percent_static))
             self.assertEqual(sim_count, 100 - int(percent_static))
+
+if __name__ == '__main__':
+    d = dataloaderTest()
+    d.test_OrchestratorDataset_static_only()

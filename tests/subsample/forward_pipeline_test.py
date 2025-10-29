@@ -35,7 +35,10 @@ class subsampleTest(unittest.TestCase):
             self.assertDictEqual(config['subsample'][t], call_args.kwargs) # type: ignore 
         list(map(check_args, {'convex-hull':cv_mock, 'kmeans':km_mock, 'kmedoids':kmed_mock, 'lhs':lhs_mock}.items()))
 
-        self.assertRaises(ValueError, check_args, ('fail', cv_mock))
+        # test that any other value returns all data
+        config['subsample']['selected-method'] = ''
+        result = subsample_from_config('/path', data)
+        torch.testing.assert_close(torch.from_numpy(data).to(torch.float32), result)
 
     def test_train_test_split(self):
         frac = 0.2
@@ -61,7 +64,7 @@ class subsampleTest(unittest.TestCase):
         expected = torch.tensor([[0, 3],
                                  [5, 8]], dtype=torch.float32)
 
-        self.assertTrue(torch.equal(result, expected))
+        np.testing.assert_array_equal(result, expected)
         self.assertEqual(result.shape, expected.shape)
 
 if __name__ == "__main__":
