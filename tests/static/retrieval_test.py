@@ -39,7 +39,7 @@ class retrievalTest(unittest.TestCase):
                 patch.object(Path, "exists"), \
                 patch(f"{MODULE}.vfs_csv", return_value=(target_wl, data)) as mock_vfs, \
                 patch(f"{MODULE}.download", return_value=(target_wl, data)) as mock_dl, \
-                patch(f"{MODULE}.interior_interpolation",return_value=interp_return) as mock_interp, \
+                patch(f"{MODULE}.interior_interpolation",return_value=(interp_return, target_wl)) as mock_interp, \
                 patch(f"{MODULE}.make_hdf5", return_value=f"{config['datasets']['output-directory']}/out.hdf5") as mock_h5:
                 
                 retrieval.generate_hdf5_from_config("dummy_config_path.yaml")
