@@ -131,7 +131,7 @@ class dataloaderTest(unittest.TestCase):
             if t == (N//bsz)*epochs: break
             self.assertFalse(ods.is_simulated_batch)
             self.assertEqual(X.shape, (bsz, dims))
-            self.assertEqual(Y.shape, (bsz,))
+            self.assertEqual(Y.shape, (bsz, N))
             self.assertEqual(ods.static_epoch_step, i)
             self.assertEqual(ods.step, t)
             if t <= (N//bsz):
@@ -140,26 +140,28 @@ class dataloaderTest(unittest.TestCase):
         self.assertEqual(ods.static_epoch, epochs)
 
         X_all = torch.vstack(seen_rows)
-        y_all = torch.hstack(seen_labels)
+        y_all = torch.vstack(seen_labels)
 
-        self.assertEqual(len(torch.unique(y_all)), N)
-        self.assertTrue(torch.equal(torch.sort(y_all).values, torch.arange(N)))
+        self.assertEqual(y_all.sum(), N) # test the sum for the one-hot encoding
+        self.assertTrue(torch.equal(y_all.sum(1), torch.ones(N)))
 
     def test_OrchestratorDataset_mixed_static_and_sim(self):
         bsz, dims = 10, 5
-        percent_static = 60.0
+        percent_static = 0.60
+        sim_args, _ = new_sim_args()
 
         torch.manual_seed(RANDOM_SEED)
         static_data = torch.ones((bsz, dims))
-        static_labels = torch.arange(bsz)
+        static_labels = torch.ones(bsz, dtype=torch.long)
         sim_data = static_data + 3
-        sim_labels = static_labels + 3
+        sim_labels = torch.ones(bsz, sim_args.n_classes, dtype=torch.long) + 2
         def mock_run_simulation(_cfg, _data): return sim_data, sim_labels
+        def mock_reset(): ...
 
-        sim_args, data_args = new_sim_args()
-        args = make_odsa(bsz, percent_static, sim_args, data_args, static_data, static_labels)
+        args = make_odsa(bsz, percent_static, sim_args, object(), static_data, static_labels)
 
-        with patch("cover_class.simulation.run_simulation", side_effect=mock_run_simulation):
+        with patch("cover_class.simulation.run_simulation", side_effect=mock_run_simulation), \
+            patch("cover_class.dataloader.OrchestratorDataset.__reset__", side_effect=mock_reset):
             ods = OrchestratorDataset(args, shuffle=True)
             dl = DataLoader(ods, batch_size=None)
 
@@ -170,18 +172,14 @@ class dataloaderTest(unittest.TestCase):
                 if ods.is_simulated_batch:
                     sim_count += 1
                     self.assertTrue(torch.allclose(X, sim_data))
-                    self.assertTrue(torch.equal(Y, sim_labels))
+                    self.assertTrue(torch.equal(Y[:, sim_labels[0, 0]], torch.ones(len(Y))))
                 else:
                     static_count += 1
+                    dl.dataset.static_epoch_step = 0
                     self.assertTrue(torch.allclose(X, static_data))
-                    sorted, _ =  torch.sort(Y)
-                    self.assertTrue(torch.equal(sorted, static_labels))
+                    self.assertTrue(torch.equal(Y[:, 1], static_labels))
                 i += 1
                 if i == 100: break
 
-            self.assertEqual(static_count, int(percent_static))
-            self.assertEqual(sim_count, 100 - int(percent_static))
-
-if __name__ == '__main__':
-    d = dataloaderTest()
-    d.test_OrchestratorDataset_static_only()
+            self.assertEqual(static_count, int(percent_static*100))
+            self.assertEqual(sim_count, 100 - int(percent_static*100))
