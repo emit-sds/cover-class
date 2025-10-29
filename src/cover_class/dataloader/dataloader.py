@@ -30,11 +30,11 @@ class OrchestratorDatasetArgs(Struct):
         self._using_static = (self.static_labels is not None) and (self.static_data is not None)
         self._using_sim = (self.sim_config_args is not None) and (self.sim_data_args is not None)
         assert self._using_static or self._using_sim, "Need to provide either simulation or static data arguments"
-        if self._using_static and not self._using_sim: self.percent_static = 100.
+        if self._using_static and not self._using_sim: self.percent_static = 1.00
         elif not self._using_static: self.percent_static = 0.
-        assert (self.percent_static is not None) and (0. <= self.percent_static <= 100.), "'percent_static' needs to be between [0, 100]"
+        assert (self.percent_static is not None) and (0. <= self.percent_static <= 1.00), "'percent_static' needs to be between [0, 1.]"
 
-        self.num_classes = self.sim_config_args.n_classes if self.sim_config_args.n_classes else len(torch.unique(self.static_labels))
+        self.num_classes = self.sim_config_args.n_classes if self._using_sim else len(torch.unique(self.static_labels))
 
         self._method_selection_idxs[:int(self.percent_static*100)] = 1
         self._shuffle_method_selection_idxs()
