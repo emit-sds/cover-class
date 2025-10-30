@@ -343,7 +343,38 @@ class simulationTest(unittest.TestCase):
             self.assertEqual(obtained_wavelength_dim, data_args.real_spectra.shape[1])
             self.assertEqual(obtained_n_iters, sim_args.n_iters)
 
+    def test_get_fractions_by_class(self):
+        filtered_n_components_per_class = torch.tensor(
+            [[1, 0, 1],
+             [0, 1, 2]], dtype=torch.int16
+        )
 
+        classes = torch.tensor(
+            [[2, -1, 0],
+             [1, 2, 0]], dtype=torch.int8
+        )
+
+        dirich_fractions = torch.tensor(
+            [[0.1, 0.2, 0.3, 0.4, 0.5],
+             [1.0, 2.0, 3.0, 4.0, 5.0]],
+            dtype=torch.float32
+        )
+
+        expected = torch.tensor(
+            [[0.2, 0.0, 0.1],
+             [5.0, 0.0, 1.0]],
+            dtype=torch.float32
+        )
+
+        out = simulate.get_fractions_by_class(
+            filtered_n_components_per_class,
+            classes,
+            dirich_fractions
+        )
+
+        torch.testing.assert_close(out, expected, rtol=0, atol=1e-7)
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    s = simulationTest()
+    s.test_get_fractions_by_class()

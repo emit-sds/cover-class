@@ -183,3 +183,6 @@ class dataloaderTest(unittest.TestCase):
 
             self.assertEqual(static_count, int(percent_static*100))
             self.assertEqual(sim_count, 100 - int(percent_static*100))
+
+if __name__ == "__main__":
+    unittest.main()
