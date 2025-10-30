@@ -1,19 +1,23 @@
 from typing import Tuple, Dict
-from torch import FloatTensor, Tensor
+from torch import FloatTensor, Tensor, LongTensor
 from torch.utils.data import DataLoader
 import torch
 import h5py # type: ignore[import]
+from copy import deepcopy
 
-from cover_class.dataloader import dataloader_from_config
+from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config
 from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
+from cover_class.simulation import run_simulation, SimulationArgs
 
 def setup_training_from_config(
         config: str|Dict, 
         batch_size: int,
-        shuffle = True,
+        shuffle: bool = True,
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
+    :param: simulated_test_set_n_rows = 0 means don't return a simulated set
+
     Returns: A tuple of the training dataloader, the test data matrix, and test labels
     """
 
@@ -50,6 +54,19 @@ def setup_training_from_config(
         train_labels,
         batch_size,
         shuffle,
-    )
+    )        
 
     return odl, FloatTensor(test_spectra), test_labels
+
+def make_simulation_test_set(
+        odl: DataLoader,
+        simulated_test_set_n_rows: int = 0
+    ) -> Tuple[FloatTensor, LongTensor, FloatTensor | None]:
+    ods: OrchestratorDataset = odl.dataset # type: ignore
+    test_sim_config_args: SimulationArgs = deepcopy(ods.args.sim_config_args) # type: ignore
+    test_sim_config_args.n_iters = simulated_test_set_n_rows
+
+    return run_simulation(
+        test_sim_config_args, 
+        ods.args.sim_data_args # type: ignore
+    )
