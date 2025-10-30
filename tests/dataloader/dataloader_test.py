@@ -31,7 +31,8 @@ def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
         alpha_uniform_low = 0.,
         alpha_uniform_high = 0.,
         white_noise = 0.,
-        noise_covariance = None
+        noise_covariance = None,
+        return_fractions = False,
     ),
     None)
     # DataArgs(torch.tensor([.1, .2, .3]), torch.tensor([.1, .2, .3])))
@@ -85,7 +86,7 @@ class dataloaderTest(unittest.TestCase):
         data = torch.ones((bsz, dims))
         labels = torch.zeros((bsz,dims), dtype=torch.int32)
         sim_args, data_args = new_sim_args()
-        def mock_run_simulation(_cfg, _data): return data, labels
+        def mock_run_simulation(_cfg, _data): return data, labels, None
 
         args = make_odsa(bsz, 0.0, sim_args, object(), None, None)
 
@@ -155,7 +156,7 @@ class dataloaderTest(unittest.TestCase):
         static_labels = torch.ones(bsz, dtype=torch.long)
         sim_data = static_data + 3
         sim_labels = torch.ones(bsz, sim_args.n_classes, dtype=torch.long) + 2
-        def mock_run_simulation(_cfg, _data): return sim_data, sim_labels
+        def mock_run_simulation(_cfg, _data): return sim_data, sim_labels, None
         def mock_reset(): ...
 
         args = make_odsa(bsz, percent_static, sim_args, object(), static_data, static_labels)
