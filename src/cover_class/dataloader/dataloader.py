@@ -65,6 +65,7 @@ class OrchestratorDataset(IterableDataset):
     static_epoch_step = 0
     static_samples_seen = 0
     is_simulated_batch = False
+    batch_dirichlet_fraction_store: Optional[FloatTensor] = None
 
     _static_idx_order: Optional[LongTensor] = None
 
@@ -100,12 +101,14 @@ class OrchestratorDataset(IterableDataset):
                     self.__reset__()
                 
                 labels = make_one_hot(self.args.static_labels[idx])# type: ignore
+                self.batch_dirichlet_fraction_store = None
                 yield self.args.static_data[idx], labels # type: ignore
 
             elif self.args._using_sim:
                 self.is_simulated_batch = True
                 # mypy doesn't catch self.args._using_sim
-                data, labels = sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+                data, labels, fractions = sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
+                self.batch_dirichlet_fraction_store = fractions
                 yield data, make_one_hot(labels)
 
             else: raise StopIteration()

@@ -37,7 +37,7 @@ def run_simulation(
         data_args: DataArgs, 
         device:    Device = Device("cpu")
     
-    ) -> Tuple[FloatTensor, CharTensor]:
+    ) -> Tuple[FloatTensor, LongTensor, Optional[FloatTensor]]:
 
     sim_args.to(device)
     data_args.to(device)
@@ -91,7 +91,14 @@ def run_simulation(
             device
         )
 
-        return resulting_real_spectra, classes # type: ignore[return-value]
+        if sim_args.return_fractions:
+            fracs_by_class = get_fractions_by_class(
+                filtered_n_components_per_class,
+                classes,
+                dirich_fractions,
+            )
+            return resulting_real_spectra, classes.long(), fracs_by_class # type: ignore[return-value]
+        return resulting_real_spectra, classes.long(), None # type: ignore[return-value]
 
 
 def _0_init_simulation_state(
@@ -286,10 +293,37 @@ def _6_add_noise(
     return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 
 
-
 def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:
     assert len(A.shape)==2, "A needs to be a 2D matrix"
     A = (A + A.T) * 0.5 # makes real, symmetric
     eigenvals, eigenvecs = torch.linalg.eigh(A)
     eigenvals = torch.clamp(eigenvals, min=min_eigen)
     return (eigenvecs * eigenvals.unsqueeze(-2)) @ eigenvecs.T
+
+
+def get_fractions_by_class(
+        filtered_n_components_per_class: ShortTensor, 
+        classes: CharTensor,
+        dirich_fractions: FloatTensor,
+
+    ) -> FloatTensor:
+    # Returns a (n_iter, n_classes) matrix of the sum of dirichlet constributions per class
+    
+    # first get the dirichlet fractions by number of components
+    n_iters, n_classes_per_sim = filtered_n_components_per_class.shape
+    n_max_sim_comps = dirich_fractions.size(1)
+    ends = filtered_n_components_per_class.cumsum(1) # (R, N)
+    pos = torch.arange(n_max_sim_comps, device=dirich_fractions.device).expand(n_iters, n_max_sim_comps)
+    grp = torch.searchsorted(ends, pos, right=True)
+    fmask = pos < ends[:, -1:]
+    summed_fracs = dirich_fractions.new_zeros(n_iters, n_classes_per_sim)
+    summed_fracs.scatter_add_(1, grp.clamp_max(n_classes_per_sim-1), dirich_fractions * fmask)
+
+    # then assign each of those to a class (one-hot)
+    valid = classes >= 0
+    cls = classes.clamp_min(0)
+    num_classes = int(cls[valid].max().item()) + 1 if valid.any() else 0
+    result = summed_fracs.new_zeros(summed_fracs.size(0), num_classes)
+    result.scatter_add_(1, cls.to(dtype=torch.int32), summed_fracs * valid)
+
+    return result # type: ignore[return-value]
