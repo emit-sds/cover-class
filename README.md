@@ -35,7 +35,7 @@ generate_hdf5_from_config('/path/to/my/config.yml')
 ### Outlier Detection
 A separate feature of the cover-class repository is the ability to utilize outlier detectors which will save out a png highlighting any outliers and provide the indices in the dataset of them. 
 
-The current options availible are:
+The current options available are:
 - z-score
 - kmeans
 - mahalanobis
