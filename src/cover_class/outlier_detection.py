@@ -39,7 +39,7 @@ def show_outliers(data:NDArray, method:str='z-score', png_name:str='', **kwargs)
         case _:
             raise ValueError('Unsupported outlier method: '+method)
     if outliers.sum() == 0:
-        return np.ndarray([])
+        return np.array([])
     
     plt.figure(figsize=(8, 5))
     plt.plot(data[~outliers].T, color='black', alpha=0.1)
