@@ -51,7 +51,7 @@ def setup_training_from_config(
     odl = dataloader_from_config(
         config, 
         FloatTensor(train_spectra),
-        train_labels,
+        LongTensor(train_labels.to(dtype=torch.long)),
         batch_size,
         shuffle,
     )        
