@@ -68,6 +68,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
     attributes:
         - 'wavelengths' [torch.Tensor]: the wavelength nanometer values for each spectra dimension
         - 'original-ds' [string]: the name of the original dataset this data is from
+        - 'other-attrs' [string]: a JSON string of other attributes to hold onto (e.g. config info)
 
     HDF5 output location: '{outpath}/{name of class from config file}_{original data filename}.hdf5'
     '''

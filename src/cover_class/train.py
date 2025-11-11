@@ -45,6 +45,7 @@ def setup_training_from_config(
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
                 if (subsampled_files_outdir != '') and (method := config['subsample']['selected-method']) is not None:
+                    Path(subsampled_files_outdir).mkdir(parents=True, exist_ok=True)
                     sconf: dict = config['subsample'][str(method).lower()]
                     make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, **sconf)
 
