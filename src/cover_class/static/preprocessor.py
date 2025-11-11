@@ -29,7 +29,7 @@ def left_edge_scale(
     As such, there will be cumulaive scaling of the left-portion of the data matrix until the 
     edges are all sequentially processed/corrected. 
     """
-    for edge in left_edges:
+    for edge in sorted(left_edges):
         denom = np.where(data_matrix[:, edge] == 0, 1e-8, data_matrix[:, edge]) # division by 0 protection
         scaling_factors = data_matrix[:, edge+1] / denom
         data_matrix[:, :edge+1] *= scaling_factors[:, np.newaxis]

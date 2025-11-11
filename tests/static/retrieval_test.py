@@ -102,6 +102,7 @@ class retrievalTest(unittest.TestCase):
             [2.0, 4.0, 8.0, 16.0],
         ], dtype=np.float32)
         d0 = deepcopy(data)
+        d1 = deepcopy(data)
 
         left_edges = [1]
         expected = np.array([
@@ -116,6 +117,11 @@ class retrievalTest(unittest.TestCase):
             [4.0, 8.0, 8.0, 8.0],
             [8.0, 16.0, 16.0, 16.0],
         ], dtype=np.float32)
+        retrieval.left_edge_scale(d1, left_edges)
+        np.testing.assert_allclose(d1, expected, rtol=1e-6)
+        
+        # test out of order indices
+        left_edges = [2, 1]
         retrieval.left_edge_scale(data, left_edges)
         np.testing.assert_allclose(data, expected, rtol=1e-6)
 
