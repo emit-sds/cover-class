@@ -95,8 +95,8 @@ def generate_hdf5_from_config(config_path:str) -> None:
             else: file_wavelengths, spectra = download(location)
 
             # [Optional] 1b. correct for the left edges
-            if d in edges:
-                left_edge_scale(spectra, edges[d])
+            if location in edges:
+                left_edge_scale(spectra, edges[location])
 
             # 2. interpolate the wavelengths
             spectra = spectra[~np.isnan(spectra).any(axis=1)]

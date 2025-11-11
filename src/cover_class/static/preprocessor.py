@@ -26,7 +26,7 @@ def left_edge_scale(
     """
     This function takes in the data matrix and the left edges of the edge discontinuity. 
     It then scales the left side of the spectra to be on the same magnitude.
-    As such, there will be cumulaive scaling of the left-portion of the data matrix until the 
+    As such, there will be cumulative scaling of the left-portion of the data matrix until the 
     edges are all sequentially processed/corrected. 
     """
     for edge in sorted(left_edges):
