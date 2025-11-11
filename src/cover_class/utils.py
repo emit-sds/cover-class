@@ -18,4 +18,5 @@ def seed(s:int):
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    torch.mps.manual_seed(s)
+    if hasattr(torch, "mps") and hasattr(torch.mps, "manual_seed") and torch.backends.mps.is_available():
+        torch.mps.manual_seed(s)
