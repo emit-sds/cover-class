@@ -44,9 +44,8 @@ def setup_training_from_config(
                 subsampled_spectra = subsample_from_config(config, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
-                if subsampled_files_outdir != '':
-                    method = config['subsample']['selected-method']
-                    sconf: dict = config['subsample'][str(method).lower()] if method is not None else dict({})
+                if (subsampled_files_outdir != '') and (method := config['subsample']['selected-method']) is not None:
+                    sconf: dict = config['subsample'][str(method).lower()]
                     make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, **sconf)
 
                 X_train, X_test, Y_train, Y_test = train_test_split(subsampled_spectra, labels, config['subsample']['test-fraction'])
