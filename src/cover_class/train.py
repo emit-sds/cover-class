@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from torch import FloatTensor, Tensor, LongTensor
 from torch.utils.data import DataLoader
 import torch
@@ -6,7 +6,7 @@ import h5py # type: ignore[import]
 from copy import deepcopy
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
-from cover_class.utils import read_config
+from cover_class.utils import read_config, seed as sseed
 from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
 from cover_class.simulation import run_simulation, SimulationArgs
 
@@ -14,12 +14,15 @@ def setup_training_from_config(
         config: str|Dict, 
         batch_size: int,
         shuffle: bool = True,
+        seed: Optional[int] = None,
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
     :param: simulated_test_set_n_rows = 0 means don't return a simulated set
 
     Returns: A tuple of the training dataloader, the test data matrix, and test labels
     """
+    if seed is not None:
+        sseed(seed)
 
     train_spectra, train_labels, test_spectra, test_labels = Tensor(), Tensor(), Tensor(), Tensor()
 
