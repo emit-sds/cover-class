@@ -7,6 +7,7 @@ import torch
 import h5py # type: ignore[import]
 from io import BytesIO
 import requests # type: ignore[import]
+import json
 
 from cover_class.utils import read_config
 from cover_class.static.preprocessor import interior_interpolation
@@ -59,7 +60,7 @@ def vfs_csv(path:str|BytesIO) -> Tuple[NDArray[np.float32], NDArray[np.float32]]
     return wavelengths, spectra
 
 
-def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tensor, spectra:torch.FloatTensor) -> str:
+def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tensor, spectra:torch.FloatTensor, **attrs) -> str:
     '''
     HDF5 contents:
     datasets:
@@ -67,6 +68,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
     attributes:
         - 'wavelengths' [torch.Tensor]: the wavelength nanometer values for each spectra dimension
         - 'original-ds' [string]: the name of the original dataset this data is from
+        - 'other-attrs' [string]: a JSON string of other attributes to hold onto (e.g. config info)
 
     HDF5 output location: '{outpath}/{name of class from config file}_{original data filename}.hdf5'
     '''
@@ -76,6 +78,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
         f.create_dataset('spectra', data=spectra)
         f.attrs['wavelengths'] = wavelengths
         f.attrs['original-ds'] = original_path
+        f.attrs['other-attrs'] = json.dumps(attrs)
     return str(outname)
 
 

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Tuple, Dict, Optional
 from torch import FloatTensor, Tensor, LongTensor
 from torch.utils.data import DataLoader
@@ -9,12 +10,14 @@ from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
 from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
 from cover_class.simulation import run_simulation, SimulationArgs
+from cover_class.static.retrieval import make_hdf5
 
 def setup_training_from_config(
         config: str|Dict, 
         batch_size: int,
         shuffle: bool = True,
         seed: Optional[int] = None,
+        subsampled_files_outdir: str = ''
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
     :param: simulated_test_set_n_rows = 0 means don't return a simulated set
@@ -40,6 +43,11 @@ def setup_training_from_config(
                 file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
                 subsampled_spectra = subsample_from_config(config, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
+
+                if (subsampled_files_outdir != '') and (method := config['subsample']['selected-method']) is not None:
+                    Path(subsampled_files_outdir).mkdir(parents=True, exist_ok=True)
+                    sconf: dict = config['subsample'][str(method).lower()]
+                    make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, **sconf)
 
                 X_train, X_test, Y_train, Y_test = train_test_split(subsampled_spectra, labels, config['subsample']['test-fraction'])
 
