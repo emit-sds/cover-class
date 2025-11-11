@@ -45,6 +45,11 @@ class subsampleTest(unittest.TestCase):
         vertices = torch.from_numpy(manual_convex_hull_check[vertices]).to(dtype=torch.float32)
         self.assertTrue(all([i in sample for i in vertices]))
 
+        # test to confirm the subsampling works when n_samples << n_requested_samples
+        n_samples = 10
+        sample = subsampler.convex_hull(np.random.random((n_samples,n_samples)), self.num_pc, n_samples*2)
+        self.assertIsInstance(sample, FloatTensor) # just check to see if it ran w/o error
+
     def test_kmeans(self):
         '''This just tests that the function itself works'''
         self.preamble()
@@ -55,6 +60,11 @@ class subsampleTest(unittest.TestCase):
         self.assertEqual(len(sample), n_samples)
         self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
 
+        # test to confirm the subsampling works when n_samples << n_requested_samples
+        sample = subsampler.kmeans(np.random.random((n_samples,n_samples)), self.num_pc, n_samples*2)
+        self.assertIsInstance(sample, FloatTensor)
+        self.assertEqual(len(sample), n_samples)
+
     def test_kmedoids(self):
         '''This just tests that the function itself works'''
         self.preamble()
@@ -64,6 +74,11 @@ class subsampleTest(unittest.TestCase):
         self.assertEqual(sample.dtype, torch.float32)
         self.assertEqual(len(sample), n_samples)
         self.assertTrue( np.all(map(lambda x: np.any(np.isclose(x, self.data_matrix)), sample)) )
+
+        # test to confirm the subsampling works when n_samples << n_requested_samples
+        sample = subsampler.kmedoids(np.random.random((n_samples,n_samples)), self.num_pc, n_samples*2)
+        self.assertIsInstance(sample, FloatTensor)
+        self.assertEqual(len(sample), n_samples)
 
     def test_lhs(self):
         '''This just tests that the function itself works'''
