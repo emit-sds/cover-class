@@ -36,6 +36,7 @@ def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **k
 
 def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
     ''' NOTE: this is only for Euclidean distances '''
+    n_samples = min(len(data_matrix), n_samples)
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
     centroids_idx = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).medoid_indices_
@@ -44,6 +45,7 @@ def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwar
 
 def kmeans(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
     ''' NOTE: this is only for Euclidean distances '''
+    n_samples = min(len(data_matrix), n_samples)
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
     centroids_pca = KMeans(n_clusters=n_samples, **kwargs).fit(Z_c).cluster_centers_
