@@ -9,7 +9,7 @@ from io import BytesIO
 import requests # type: ignore[import]
 
 from cover_class.utils import read_config
-from cover_class.static.preprocessor import interior_interpolation
+from cover_class.static.preprocessor import interior_interpolation, left_edge_scale
 
 
 def download(uri: str) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
@@ -85,13 +85,18 @@ def generate_hdf5_from_config(config_path:str) -> None:
     ds = config['datasets']
     outdir = ds['output-directory']
     assert Path(outdir).is_dir(), f"'output-directory': {outdir} is not a directory"
+    edges = config.get('left-edge-correction', dict({}))
 
     for d in (ds_classes := ds['classes']):
         if ds_classes[d] == None: continue
         for location in ds_classes[d]:
-            # 1. get the wavelength and spectra from the locations
+            # 1a. get the wavelength and spectra from the locations
             if Path(location).is_file(): file_wavelengths, spectra = vfs_csv(location)
             else: file_wavelengths, spectra = download(location)
+
+            # [Optional] 1b. correct for the left edges
+            if d in edges:
+                left_edge_scale(spectra, edges[d])
 
             # 2. interpolate the wavelengths
             spectra = spectra[~np.isnan(spectra).any(axis=1)]
