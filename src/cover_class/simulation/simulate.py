@@ -313,7 +313,7 @@ def get_fractions_by_class(
     n_iters, n_classes_per_sim = filtered_n_components_per_class.shape
     n_max_sim_comps = dirich_fractions.size(1)
     ends = filtered_n_components_per_class.cumsum(1) # (R, N)
-    pos = torch.arange(n_max_sim_comps, device=dirich_fractions.device).expand(n_iters, n_max_sim_comps)
+    pos = torch.arange(n_max_sim_comps, device=dirich_fractions.device).unsqueeze(0).repeat(n_iters, 1)
     grp = torch.searchsorted(ends, pos, right=True)
     fmask = pos < ends[:, -1:]
     summed_fracs = dirich_fractions.new_zeros(n_iters, n_classes_per_sim)
