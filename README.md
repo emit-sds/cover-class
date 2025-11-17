@@ -31,3 +31,17 @@ It gets the data matrix from a supported CSV format from either a VFS or downloa
 from cover_class.static.retrieval import generate_hdf5_from_config
 generate_hdf5_from_config('/path/to/my/config.yml')
 ```
+
+### Reporting
+Post-training, it is useful to standardize the training and evaluation metadata and metrics. As such, this `cover-class` repository offers a function to automatically generate a PDF report to compare against other models.
+Takes in:
+- Training:
+    - a dictionary to turn into a JSON
+    - a dictionary to turn into plots
+    - a list of self-made matplotlib figures to include
+- Evaluation:
+    - a dictionary to turn into a JSON
+    - a dictionary to turn into plots
+    - a list of self-made matplotlib figures to include
+```
+```
