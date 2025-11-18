@@ -1,8 +1,10 @@
-from typing import Dict
+from typing import Dict, Tuple
 import yaml # type: ignore[import]
 import torch
 import numpy as np
 import random
+from spectral.io import envi # type: ignore[import]
+import re
 
 def read_config(path: str|Dict) -> Dict: 
     if isinstance(path, dict): return path
@@ -20,3 +22,14 @@ def seed(s:int):
     torch.backends.cudnn.deterministic = True
     if hasattr(torch, "mps") and hasattr(torch.mps, "manual_seed") and torch.backends.mps.is_available():
         torch.mps.manual_seed(s)
+
+def name_to_nm(bandname:str) -> float:
+    """ Convert wavelength text to float """
+    return float(re.search(r'(\d+\.\d+)', bandname).group(1)) # type: ignore 
+
+def load_rfl(hdr_fp:str) -> Tuple[np.ndarray, np.ndarray]:
+    rfl_header = envi.open(hdr_fp)
+    rfl = rfl_header.open_memmap(interleave='bip')
+    banddef = [name_to_nm(name) for name in rfl_header.metadata['wavelength']]
+    banddef = np.array(banddef, dtype=float) # type: ignore 
+    return rfl, banddef # type: ignore 
