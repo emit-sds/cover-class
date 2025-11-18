@@ -8,6 +8,7 @@ from scipy.spatial import ConvexHull # type: ignore[import]
 from sklearn_extra.cluster import KMedoids # type: ignore[import]
 from sklearn.cluster import KMeans # type: ignore[import]
 from sklearn.decomposition import PCA # type: ignore[import]
+from scipy.spatial.distance import mahalanobis # type: ignore[import]
 
 '''
 All functions in this file are meant to be used on a per-class basis
@@ -39,6 +40,11 @@ def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwar
     n_samples = min(len(data_matrix), n_samples)
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
+    if kwargs.get("metric", None) == "mahalanobis":
+        VI = np.linalg.inv(np.cov(Z_c, rowvar=False))
+        def maha(u, v, VI=VI): 
+            return mahalanobis(u, v, VI)
+        kwargs["metric"] = maha
     centroids_idx = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).medoid_indices_
     return FloatTensor(torch.from_numpy(data_matrix[centroids_idx]).to(torch.float32))
 

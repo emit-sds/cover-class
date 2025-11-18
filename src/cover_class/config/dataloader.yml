@@ -47,6 +47,7 @@ subsample:
     init:
     max_iter:
     random_state:
+    metric: mahalanobis
   lhs:
     num_pc: 1
     n_samples: 10
