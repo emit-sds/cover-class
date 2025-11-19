@@ -31,3 +31,26 @@ It gets the data matrix from a supported CSV format from either a VFS or downloa
 from cover_class.static.retrieval import generate_hdf5_from_config
 generate_hdf5_from_config('/path/to/my/config.yml')
 ```
+
+### Outlier Detection
+A separate feature of the cover-class repository is the ability to utilize outlier detectors which will save out a png highlighting any outliers and provide the indices in the dataset of them. 
+
+The current options available are:
+- z-score
+- kmeans
+- mahalanobis
+- lof (Local Outlier Factor)
+
+Example:
+```
+>>> import numpy as np
+>>> my_data = np.load('my_data.npy')
+>>> 
+>>> from cover_class.outlier_detection import show_outliers
+>>> kwargs = {'outlier_percentile': 80}
+>>> show_outliers(my_data, 'mahalanobis', png_name='my-data-outliers.png', **kwargs)
+array([ 2,  4,  5, 37, 50, 59, 60])
+```
+
+And an example of an output png:
+![outlier detection figure](figs/outlier-detection-readme-fig.png)
