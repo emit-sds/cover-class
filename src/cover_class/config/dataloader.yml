@@ -1,8 +1,8 @@
 version: v0
 tags: initial-config classes[]
 drop-bands-wavelengths: # needs to be a list of tuples
-  - [5, 5] # for one-band items
-  - [10, 200]
+  - [400, 500] # for one-band items
+  - [1000, 1200]
 datasets:
   soil:
     - /some/path.hdf5
@@ -54,3 +54,6 @@ subsample:
     samples_per_hypercube: 3
 dataloader:
   percent-static-data: 0.5
+test-scene-urls:
+  - https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/EMIT_L2A_RFL_001_20250404T194611_2509413_006/EMIT_L2A_RFL_001_20250404T194611_2509413_006.nc
+  - https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/EMIT_L2A_RFL_001_20250421T173332_2511111_018/EMIT_L2A_RFL_001_20250421T173332_2511111_018.nc
