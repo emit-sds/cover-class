@@ -175,7 +175,6 @@ def generate_pdf_report(
     contents.append(Paragraph(f"<b>Model:</b>  {str(report_config.model_config.model_name)}", report_styles["NormalCenter"]))
     contents.append(Spacer(1, 0.1 * inch))
     contents.append(Paragraph(f"<b>Timestamp:</b> {str(report_config.timestamp)}", report_styles["Normal"]))
-    contents.append(Paragraph(f"<b>Git Commit:</b> {str(report_config.git_commit)}", report_styles["Normal"]))
     contents.append(Paragraph(f"<b>Weights and Biases Run:</b> {str(report_config.wandb_link)}", report_styles["Normal"]))
     contents.append(Spacer(1, 0.3 * inch))
     ###############################################

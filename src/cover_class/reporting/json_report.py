@@ -13,7 +13,6 @@ def generate_json_report(
     out.update({'Timestamp':report_config.timestamp})
     out.update({'W&B Link':report_config.wandb_link})
     out.update({'Seed':report_config.random_seed})
-    out.update({'Git Commit':report_config.git_commit})
     out.update({'Notes':report_config.notes})
     out.update({'Train':report_config.train_metric_table})
     out.update({'Test':report_config.test_metric_table})

@@ -56,7 +56,6 @@ class Report:
     author: Optional[str] = None
     wandb_link: Optional[str] = None
     random_seed: Optional[int] = None
-    git_commit: Optional[str] = None
     notes: Optional[str] = None
     timestamp: Optional[str] = None
     qualitative_testing_scenes_paths: List[str] = field(default_factory=list)
