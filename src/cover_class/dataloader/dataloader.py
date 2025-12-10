@@ -100,7 +100,7 @@ class OrchestratorDataset(IterableDataset):
                 if end >= len(self.args.static_data)-1: # type: ignore
                     self.__reset__()
                 
-                labels = make_one_hot(self.args.static_labels[idx])# type: ignore
+                labels = make_one_hot(self.args.static_labels[idx]) # type: ignore
                 self.batch_dirichlet_fraction_store = None
                 yield self.args.static_data[idx], labels # type: ignore
 
