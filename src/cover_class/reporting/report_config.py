@@ -111,6 +111,8 @@ class Report:
                 metrics[k].update(v)
 
         self.test_figures.extend([cm_plot, mcc_plot, roc_plot])
+        if self.test_metric_table is None:
+            self.test_metric_table = {}
         self.test_metric_table.update(metrics)
 
         # 2. Generate Report
