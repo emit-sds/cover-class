@@ -50,7 +50,14 @@ Takes in:
 
 The Report can be generated once a context block is finished, so once your training loop exists, the report will be generated. This way, you don't need to explicitly call a generation function. 
 
-Example of generating a report
+> [!IMPORTANT]
+> This report relies on setting up a `.netrc` file in the `cover-class/src/cover_class/reporting/assets/.netrc` file path. There's no real good way to avoid it. When a `Report` object is instanited, the control logic will try to download the qualitative assessment files, so there will be an early error if this is not possible. The file download only occurs whenever there aren't the detected files in `cover-class/src/cover_class/reporting/qualitative`.
+>
+> Steps:
+> 1. Set up an account at [https://urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov)
+> 2. Copy your username and password to replace `example@email.com` and `mySuperSecurePassword123` in `cover-class/src/cover_class/reporting/assets/.netrc`.
+
+Example of generating a report:
 ```
 # the dataloader, and train/test sets have been generated already
 
