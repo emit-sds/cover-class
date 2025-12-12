@@ -20,10 +20,10 @@ To generate a simulated test set:
 ```
 from cover_class.train import make_simulation_test_set
 
-test_fractions = make_simulation_test_set(
+simulated_test_data, simulated_test_labels, simulated_test_fractions = make_simulation_test_set(
     dataloader,
-    test_data, 
-    test_labels,
+    real_test_data, 
+    real_test_labels,
     simulated_test_set_n_rows = <some_number>
 )
 ```
