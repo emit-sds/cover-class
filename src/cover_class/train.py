@@ -9,7 +9,7 @@ from copy import deepcopy
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
 from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
-from cover_class.simulation import run_simulation, SimulationArgs
+from cover_class.simulation import run_simulation, SimulationArgs, DataArgs
 from cover_class.static.retrieval import make_hdf5
 
 def setup_training_from_config(
@@ -71,13 +71,17 @@ def setup_training_from_config(
 
 def make_simulation_test_set(
         odl: DataLoader,
+        test_spectra: FloatTensor,
+        test_labels: Tensor,
         simulated_test_set_n_rows: int = 0
+
     ) -> Tuple[FloatTensor, LongTensor, FloatTensor | None]:
     ods: OrchestratorDataset = odl.dataset # type: ignore
     test_sim_config_args: SimulationArgs = deepcopy(ods.args.sim_config_args) # type: ignore
+    test_data_config_args = DataArgs(test_spectra, test_labels)
     test_sim_config_args.n_iters = simulated_test_set_n_rows
 
     return run_simulation(
         test_sim_config_args, 
-        ods.args.sim_data_args # type: ignore
+        test_data_config_args,
     )
