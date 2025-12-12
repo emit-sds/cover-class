@@ -26,7 +26,7 @@ $ python3 models/training_example.py --help
 │ *  --batch-size               INTEGER    Batch size. [required]                                                                                                                  │
 │    --max-training-steps       INTEGER    Maximum number of training steps to do. This is needed for simulated data as otherwise there would be no loop termination condition.    │
 │    --log-interval             OPTIONAL   Number of steps between logging                                                                                                         │
-│    --static-config            OPTIONAL   Path to the YAML config for gnerating an HDF5 from a set of CSVs. If provided, it will run a generator function for creating the HDF5s, │
+│    --static-config            OPTIONAL   Path to the YAML config for generating an HDF5 from a set of CSVs. If provided, it will run a generator function for creating the HDF5s, │
 │                                          but if omitted, it will not.                                                                                                            │
 │    --simulated-test-set-size  INTEGER    Number of rows to generate for the simulated test set.                                                                                  │
 │    --seed                     INTEGER    Seed.                                                                                                                                   │

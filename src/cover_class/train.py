@@ -74,7 +74,7 @@ def make_simulation_test_set(
         test_spectra: FloatTensor,
         test_labels: Tensor,
         simulated_test_set_n_rows: int = 0,
-        one_hot_endocde: bool = True,
+        one_hot_encode: bool = True,
 
     ) -> Tuple[FloatTensor, LongTensor, FloatTensor | None]:
     ods: OrchestratorDataset = odl.dataset # type: ignore
@@ -86,6 +86,6 @@ def make_simulation_test_set(
         test_sim_config_args, 
         test_data_config_args,
     )
-    if one_hot_endocde:
+    if one_hot_encode:
         return x, one_hot_encode_simulated_data(y, ods.args.num_classes), f # type: ignore
     return x, y, f

@@ -32,11 +32,11 @@ ENV_VAR_PREFIX = 'COVER_CLASS_TRAIN_'
 )
 @click.option(
     "--lr",
-    required=True,
+    required=False,
     type=float,
     default=3e-4,
     help="Learning rate.",
-    envvar=f'{ENV_VAR_PREFIX}_BSZ'
+    envvar=f'{ENV_VAR_PREFIX}_LR'
 )
 @click.option(
     "--batch-size",
@@ -66,7 +66,7 @@ ENV_VAR_PREFIX = 'COVER_CLASS_TRAIN_'
     required=False,
     type=click.Path(exists=True, dir_okay=False),
     default=None,
-    help="Path to the YAML config for gnerating an HDF5 from a set of CSVs. If provided, it will run a generator function for creating the HDF5s, but if omitted, it will not.",
+    help="Path to the YAML config for generating an HDF5 from a set of CSVs. If provided, it will run a generator function for creating the HDF5s, but if omitted, it will not.",
     envvar=f'{ENV_VAR_PREFIX}_STATIC_CONFIG'
 )
 @click.option(
