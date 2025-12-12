@@ -18,8 +18,12 @@ To get the dirichlet fractions, after every iteration, check `dataloader.dataset
 
 To generate a simulated test set:
 ```
-from cover_class.train import test_data, test_labels, test_fractions = make_simulation_test_set(
+from cover_class.train import make_simulation_test_set
+
+test_fractions = make_simulation_test_set(
     dataloader,
+    test_data, 
+    test_labels,
     simulated_test_set_n_rows = <some_number>
 )
 ```
