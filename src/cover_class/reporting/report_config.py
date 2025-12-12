@@ -98,7 +98,8 @@ class Report:
         y_hat = make_numpy(y_hat)
 
         # 1. Get Metrics
-        class_names = [str(c) for c in self.config['datasets'].keys()]
+        ds: Dict = self.config['datasets'] # type: ignore
+        class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
         cm_plot            = confusion_matrix(y_hat, self.Y_test, class_names)
         mcc_plot           = missed_class_confusion(y_hat, self.Y_test, class_names)
         rates              = tpr_fpr(y_hat, self.Y_test, class_names)

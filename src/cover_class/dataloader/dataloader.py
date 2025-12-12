@@ -81,10 +81,7 @@ class OrchestratorDataset(IterableDataset):
         def make_one_hot(y:torch.Tensor) -> torch.Tensor:
             if self.is_simulated_batch:
                 # 2D one-hot
-                out = torch.zeros(y.size(0), self.args.num_classes, dtype=torch.double, device=y.device)
-                out.scatter_add_(dim=1, index=y.clamp(0), src=(y >= 0).double())
-                out.clamp_(max=1)
-                return out
+                return sim.one_hot_encode_simulated_data(y, self.args.num_classes)
             return torch.nn.functional.one_hot(y, num_classes=self.args.num_classes).double()
 
         while True:

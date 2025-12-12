@@ -265,7 +265,8 @@ def generate_pdf_report(
     ############# Qualitative Testing: ############
     contents.append(Paragraph("Testing Qualitative Scene Report", report_styles["Heading1"]))
     drop_wls: List[Any] = report_config.config['drop-bands-wavelengths'] #type: ignore
-    class_names = list(report_config.config['datasets'].keys()) #type: ignore
+    ds: Dict = report_config.config['datasets'] #type: ignore
+    class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
     for scene in report_config.qualitative_testing_scenes_paths:
         try:
             scene_posterior = inference_over_scene(scene, report_config.model_config.model, drop_wls)
