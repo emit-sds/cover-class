@@ -75,8 +75,13 @@ def make_simulation_test_set(
         test_labels: Tensor,
         simulated_test_set_n_rows: int = 0,
         one_hot_encode: bool = True,
+        seed: Optional[int] = None,
 
     ) -> Tuple[FloatTensor, LongTensor, FloatTensor | None]:
+
+    if seed is not None:
+        sseed(seed)
+
     ods: OrchestratorDataset = odl.dataset # type: ignore
     test_sim_config_args: SimulationArgs = deepcopy(ods.args.sim_config_args) # type: ignore
     test_data_config_args = DataArgs(test_spectra, test_labels)

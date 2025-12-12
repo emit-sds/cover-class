@@ -24,7 +24,8 @@ simulated_test_data, simulated_test_labels, simulated_test_fractions = make_simu
     dataloader,
     real_test_data, 
     real_test_labels,
-    simulated_test_set_n_rows = <some_number>
+    simulated_test_set_n_rows = <some_number>,
+    seed = 42,
 )
 ```
 
