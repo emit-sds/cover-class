@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
-from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
+from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands, drop_bad_banddef
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs, one_hot_encode_simulated_data
 from cover_class.static.retrieval import make_hdf5
 
@@ -41,6 +41,7 @@ def setup_training_from_config(
                 file_spectra = f['spectra'][:]
                 file_wavelengths = f.attrs['wavelengths']
                 file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
+                file_wavelengths = drop_bad_banddef(file_wavelengths, drop_bands)
                 subsampled_spectra = subsample_from_config(config, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
@@ -67,7 +68,7 @@ def setup_training_from_config(
         shuffle,
     )        
 
-    return odl, FloatTensor(test_spectra), test_labels
+    return odl, FloatTensor(test_spectra), test_labels, file_wavelengths
 
 def make_simulation_test_set(
         odl: DataLoader,

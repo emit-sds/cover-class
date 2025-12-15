@@ -51,3 +51,21 @@ def drop_bad_bands(
         mask ^= (banddef >= low) & (banddef <= high)
     spectra = np.delete(data_matrix, ~mask, axis=-1)
     return spectra
+
+def drop_bad_banddef(
+        banddef: NDArray, 
+        drop_wl_ranges: Optional[List[List[int]]] = None,
+    ) -> NDArray[np.float32]
+    """
+    References https://github.com/emit-sds/SpecTf/blob/main/spectf/utils.py#L104
+    Removes bands/wavelengths of high uncertainty from band definition.
+    """
+    if drop_wl_ranges is None or not len(drop_wl_ranges):
+        return banddef 
+
+    mask = np.ones_like(banddef, dtype=bool)
+    for low, high in drop_wl_ranges:
+        mask ^= (banddef >= low) & (banddef <= high)
+    banddef = banddef[mask]
+
+    return banddef
