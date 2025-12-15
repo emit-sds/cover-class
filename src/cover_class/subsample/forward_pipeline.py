@@ -55,7 +55,7 @@ def drop_bad_bands(
 def drop_bad_banddef(
         banddef: NDArray, 
         drop_wl_ranges: Optional[List[List[int]]] = None,
-    ) -> NDArray[np.float32]
+    ) -> NDArray[np.float32]:
     """
     References https://github.com/emit-sds/SpecTf/blob/main/spectf/utils.py#L104
     Removes bands/wavelengths of high uncertainty from band definition.
