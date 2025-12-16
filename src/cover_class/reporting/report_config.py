@@ -90,10 +90,10 @@ class Report:
         if isinstance(self.model_config.model, torch.nn.Module):
             self.model_config.model.eval()
             with torch.no_grad():
-                y_hat = torch.nn.functional.softmax(self.model_config.model(self.X_test),dim=1)
+                y_hat = torch.sigmoid(self.model_config.model(self.X_test))
         else:
             y_hat = torch.from_numpy(self.model_config.model(self.X_test))
-            y_hat = torch.nn.functional.softmax(y_hat,dim=1)
+            y_hat = torch.sigmoid(y_hat)
         y_hat = (y_hat >= self.classification_threshold).to(torch.long)
         y_hat = make_numpy(y_hat)
 
