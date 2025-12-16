@@ -36,12 +36,14 @@ def confusion_matrix(
     for c in range(n_classes):
         ax = axes[c]
         cmo = cm(y[:, c], y_hat[:, c])
+        pct = cmo / cmo.sum() * 100
         ax.imshow(cmo, cmap="Blues")
         ax.set_title(class_names[c])
         ax.set_xlabel("Predicted")
         ax.set_ylabel("True")
         for (i, j), v in np.ndenumerate(cmo):
-            ax.text(j, i, str(v), ha="center", va="center", color="black")
+            this_color = "black" if pct[i,j]<33 else "white"
+            ax.text(j, i, f"{v}\n({pct[i,j]:.1f}%)", ha="center", va="center", color=this_color)
 
     fig.tight_layout()
     return fig
@@ -120,8 +122,9 @@ def missed_class_confusion(
 
     for i in range(n_classes):
         for j in range(n_classes):
-            if not (v := masked_miss_confusion_mat[i,j]):
-                ax.text(j, i, f"{v:.1f}%", ha="center", va="center", color="white" if im.norm(v) > .5 else "black", fontsize=9)
+            if i != j:
+                v = masked_miss_confusion_mat[i, j]
+                ax.text(j, i, f"{float(v):.1f}%", ha="center", va="center", color="white" if im.norm(v) > .5 else "black", fontsize=9)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("% misses")
