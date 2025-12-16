@@ -101,7 +101,7 @@ def run_pipeline_classifier(
         print("Creating HDF5s from config")
         generate_hdf5_from_config(static_config)
         
-    dataloader, test_X, test_Y, _ = setup_training_from_config(config, batch_size, True, seed, outdir)
+    dataloader, test_X, test_Y = setup_training_from_config(config, batch_size, True, seed, outdir)
 
     ## create simulation eval set
     sseed(seed)
