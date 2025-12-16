@@ -57,7 +57,7 @@ class subsampleTest(unittest.TestCase):
     def test_drop_bad_bands(self):
         banddef = torch.tensor([400, 500, 600, 700, 800], dtype=torch.float32)
         data_matrix = torch.arange(10, dtype=torch.float32).reshape(2, 5)
-        drop_wl_ranges = [[450, 650], [800, 800]]  # Drop 500–600 nm bands and 800 nm band
+        drop_wl_ranges = [[450, 650], [800, 800]]  # Drop 500-600 nm bands and 800 nm band
 
         result = forward_pipeline.drop_bad_bands(data_matrix.numpy(), banddef.numpy(), drop_wl_ranges)
 
@@ -66,6 +66,18 @@ class subsampleTest(unittest.TestCase):
 
         np.testing.assert_array_equal(result, expected)
         self.assertEqual(result.shape, expected.shape)
+    
+    def test_drop_bad_banddef(self):
+        banddef = torch.tensor([400, 500, 600, 700, 800], dtype=torch.float32)
+        drop_wl_ranges = [[450, 650], [800, 800]]  # Drop 500-600 nm bands and 800 nm band
+        
+        result = forward_pipeline.drop_bad_banddef(banddef.numpy(), drop_wl_ranges)
+
+        expected = torch.tensor([400, 700], dtype=torch.float32)
+
+        np.testing.assert_array_equal(result, expected)
+        self.assertEqual(result.shape, expected.shape)
+
 
 if __name__ == "__main__":
     unittest.main()
