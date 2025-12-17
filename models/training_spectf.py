@@ -161,7 +161,7 @@ def run_pipeline_classifier(
         model.train()
         optimizer.train()
         for batch_X, batch_Y in dataloader:
-            batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
+            batch_X = batch_X.to(device=device, dtype=torch.float32)
             batch_X = torch.unsqueeze(batch_X, -1)
             batch_Y = batch_Y.to(device)
 
