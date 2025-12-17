@@ -5,7 +5,7 @@ batch_size: 64
 
 # Model parameters
 model:
-  dim_output: 6
+  dim_output: 5
   num_heads: 8
   dim_proj: 128
   dim_ff: 256
@@ -18,7 +18,7 @@ model:
 training:
   learning_rate: 0.0001
   warmup_steps: 10
-  total_steps: 100
+  total_steps: 100000
 
 # Random seed for reproducibility
 random_seed: 42

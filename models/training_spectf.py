@@ -93,6 +93,7 @@ def run_pipeline_classifier(
         subsampled_files_outdir=outdir)
 
     banddef = banddef_from_config(data_config)
+    print("DEBUG", banddef.shape)
 
     # create simulation eval set
     sseed(m_config['random_seed'])
@@ -106,7 +107,7 @@ def run_pipeline_classifier(
     device = get_device(0)
 
     # model definition
-    model = SpecTfEncoder(banddef.to(device),
+    model = SpecTfEncoder(torch.tensor(banddef, dtype=torch.float32).to(device),
                          dim_output=m_config['model']['dim_output'],
                          num_heads=m_config['model']['num_heads'],
                          dim_proj=m_config['model']['dim_proj'],
@@ -157,8 +158,11 @@ def run_pipeline_classifier(
     ) as report:
         
         # Training loop
+        model.train()
+        optimizer.train()
         for batch_X, batch_Y in dataloader:
-            batch_X = batch_X.to(device)
+            batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
+            batch_X = torch.unsqueeze(batch_X, -1)
             batch_Y = batch_Y.to(device)
 
             accumulator += 1
@@ -172,6 +176,8 @@ def run_pipeline_classifier(
             optimizer.step()
 
             nats = loss.cpu().item()
+
+            run.log({"loss_train": nats})
 
             losses["loss"].append(nats) #type: ignore
             losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
@@ -194,9 +200,11 @@ def run_pipeline_classifier(
 
         # Test loop
         model.eval()
+        optimizer.eval()
         y_hat = np.zeros_like(simulation_y_test)
         for i, (batch_X, batch_Y) in enumerate(test_dataloader):
-            batch_X = batch_X.to(device)
+            batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
+            batch_X = torch.unsqueeze(batch_X, -1)
             with torch.no_grad():
                 batch_y_hat = model(batch_X)
                 batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
@@ -204,7 +212,6 @@ def run_pipeline_classifier(
                 y_hat[i*bs:(i+1)*bs] = batch_y_hat
 
         report.y_hat = y_hat
-
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
