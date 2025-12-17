@@ -1,0 +1,59 @@
+version: v0
+tags: initial-config classes[]
+drop-bands-wavelengths: # needs to be a list of tuples
+  - [0, 440] # for one-band items
+  - [1310, 1490]
+  - [1770, 2050]
+  - [2440, 2880]
+datasets:
+  bare:
+    - /scratch/cmml/emit-frac/20251214/soil_soil.hdf5
+    - /scratch/cmml/emit-frac/20251214/rock_rock.hdf5
+  pv:
+    - /scratch/cmml/emit-frac/20251214/pv_pv.hdf5
+  npv:
+    - /scratch/cmml/emit-frac/20251214/npv_npv.hdf5
+  snow+ice:
+    - /scratch/cmml/emit-frac/20251214/snow-ice_snow-ice.hdf5
+  water:
+    - /scratch/cmml/emit-frac/20251214/water_water.hdf5
+simulation:
+  n_components: [1,5]
+  n_classes_in_subsets: 3
+  alpha: 0.3
+  min_frac: 0.1
+  alpha_uniform_low: 0.1
+  alpha_uniform_high: 10.
+  white_noise: 0.0001
+  noise_covariance_csv: /scratch/cmml/emit-frac/spectral_covariances_no_header_v2.csv
+  return_fractions: true
+subsample:
+  test-fraction: 0.3
+  selected-method: kmeans
+  convex-hull:
+    num_pc: 4
+    n_samples: 100
+    qhull_options:
+  kmeans:
+    num_pc: 4
+    n_samples: 100
+    init: k-means++
+    n_init: auto
+    max_iter: 300
+    tol: 0.0001
+    random_state: 2345
+    algorithm: lloyd
+  kmedoids:
+    num_pc: 20
+    n_samples: 100
+    method: alternate
+    init: k-medoids++
+    max_iter: 300
+    random_state: 2345
+    metric: mahalanobis
+  lhs:
+    num_pc: 1
+    hypercubes_per_dimension: 3
+    samples_per_hypercube: 3
+dataloader:
+  percent-static-data: 0.0

@@ -1,0 +1,29 @@
+# Configuration for training SpecTf model
+
+# DataLoader parameters
+batch_size: 64
+
+# Model parameters
+model:
+  dim_output: 6
+  num_heads: 8
+  dim_proj: 128
+  dim_ff: 256
+  dropout: 0.1
+  agg: "max"
+  use_residual: false
+  num_layers: 1
+
+# Training parameters
+training:
+  learning_rate: 0.0001
+  warmup_steps: 10
+  total_steps: 100
+
+# Random seed for reproducibility
+random_seed: 42
+
+# Weights & Biases logging
+wandb:
+  entity: "jpl-cmml"
+  project: "frac-cover"

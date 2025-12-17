@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from numpy.typing import NDArray
 from torch import Tensor
-import torch
 import getpass
 import os
+import numpy as np
 
 from cover_class.utils import read_config
 from cover_class.reporting.metrics import (
@@ -46,6 +46,7 @@ class Report:
     X_test: Union[Tensor, NDArray]
     Y_test: Union[Tensor, NDArray]
 
+    y_hat: NDArray = None
     classification_threshold: float = 0.5
     train_plots: List[GenLinePlot] = field(default_factory=list)
     test_plots: List[GenLinePlot] = field(default_factory=list)
@@ -79,6 +80,8 @@ class Report:
         if self._download_missing_qualitative_testing_scenes_from_config:
             uris = read_config(self.config).get("test-scene-urls", [])
             self.qualitative_testing_scenes_paths.extend(download_scenes(uris))
+        
+        self.y_hat = np.zeros_like(self.Y_test)
 
     def __enter__(self):
         return self
@@ -87,24 +90,14 @@ class Report:
         self.make_report()
 
     def make_report(self):
-        if isinstance(self.model_config.model, torch.nn.Module):
-            self.model_config.model.eval()
-            with torch.no_grad():
-                y_hat = torch.sigmoid(self.model_config.model(self.X_test))
-        else:
-            y_hat = torch.from_numpy(self.model_config.model(self.X_test))
-            y_hat = torch.sigmoid(y_hat)
-        y_hat = (y_hat >= self.classification_threshold).to(torch.long)
-        y_hat = make_numpy(y_hat)
-
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
-        cm_plot            = confusion_matrix(y_hat, self.Y_test, class_names)
-        mcc_plot           = missed_class_confusion(y_hat, self.Y_test, class_names)
-        rates              = tpr_fpr(y_hat, self.Y_test, class_names)
-        f1_scores          = f_beta_scores(y_hat, self.Y_test, class_names)
-        roc_plot, roc_dict = roc_auc(y_hat, self.Y_test, class_names)
+        cm_plot            = confusion_matrix(self.y_hat, self.Y_test, class_names)
+        mcc_plot           = missed_class_confusion(self.y_hat, self.Y_test, class_names)
+        rates              = tpr_fpr(self.y_hat, self.Y_test, class_names)
+        f1_scores          = f_beta_scores(self.y_hat, self.Y_test, class_names)
+        roc_plot, roc_dict = roc_auc(self.y_hat, self.Y_test, class_names)
         # zip together the metric dicts
         metrics = {c:{} for c in class_names}
         for m in [rates, f1_scores, roc_dict]:
