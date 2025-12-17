@@ -36,11 +36,13 @@ def confusion_matrix(
     for c in range(n_classes):
         ax = axes[c]
         cmo = cm(y[:, c], y_hat[:, c])
-        pct = cmo / cmo.sum() * 100
+        pct = (cmo / cmo.sum(axis=1, keepdims=True)) * 100
         ax.imshow(cmo, cmap="Blues")
         ax.set_title(class_names[c])
         ax.set_xlabel("Predicted")
         ax.set_ylabel("True")
+        ax.set_xticks([])
+        ax.set_yticks([])
         for (i, j), v in np.ndenumerate(cmo):
             this_color = "black" if pct[i,j]<33 else "white"
             ax.text(j, i, f"{v}\n({pct[i,j]:.1f}%)", ha="center", va="center", color=this_color)
