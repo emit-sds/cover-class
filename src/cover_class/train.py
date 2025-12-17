@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import torch
 import h5py # type: ignore[import]
 from copy import deepcopy
+import numpy as np
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
@@ -75,7 +76,7 @@ def banddef_from_config(config: str|Dict) -> FloatTensor:
     """
     config = read_config(config)
     drop_bands = config['drop-bands-wavelengths']
-    file_wavelengths = Tensor()
+    file_wavelengths = np.array([])
 
     for i, d in enumerate(config['datasets']):
         hdf5_list = config['datasets'][d]
@@ -86,7 +87,7 @@ def banddef_from_config(config: str|Dict) -> FloatTensor:
                 file_wavelengths = f.attrs['wavelengths']
                 file_wavelengths = drop_bad_banddef(file_wavelengths, drop_bands)
                 break
-        if file_wavelengths.numel() != 0:
+        if len(file_wavelengths) != 0:
             break
 
     return file_wavelengths
