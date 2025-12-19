@@ -155,7 +155,7 @@ def run_pipeline_classifier(
         ),
         X_test=simulation_x_test,
         Y_test=simulation_y_test,
-        classification_threshold = 0.1,
+        classification_threshold = [0.3 for _ in range(num_classes)],
         random_seed=seed,
     ) as report:
         
