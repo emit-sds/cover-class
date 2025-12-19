@@ -46,7 +46,7 @@ class Report:
     X_test: Union[Tensor, NDArray]
     Y_test: Union[Tensor, NDArray]
 
-    classification_threshold: float = 0.5
+    classification_threshold: Optional[List[float]] = None
     train_plots: List[GenLinePlot] = field(default_factory=list)
     test_plots: List[GenLinePlot] = field(default_factory=list)
     train_figures: List[Figure] = field(default_factory=list)
@@ -69,6 +69,13 @@ class Report:
 
         if self.author is None:
             self.author = getpass.getuser()
+
+        # make the per-class classification thresholds
+        n_classes = self.Y_test.shape[-1]
+        if self.classification_threshold is not None:
+            assert len(self.classification_threshold) == n_classes, f"There are {len(self.classification_threshold)} class thresholds, but {n_classes} classes"
+        else:
+            self.classification_threshold = [0.5 for _ in range(n_classes)]
 
         # finally, make sure that all of the qualitative scenes are installed
         if len(self.qualitative_testing_scenes_paths):
@@ -94,7 +101,7 @@ class Report:
         else:
             y_hat = torch.from_numpy(self.model_config.model(self.X_test))
             y_hat = torch.sigmoid(y_hat)
-        y_hat = (y_hat >= self.classification_threshold).to(torch.long)
+        y_hat = (y_hat >= torch.tensor(self.classification_threshold)).to(torch.long)
         y_hat = make_numpy(y_hat)
 
         # 1. Get Metrics
