@@ -5,10 +5,11 @@ from torch.utils.data import DataLoader
 import torch
 import h5py # type: ignore[import]
 from copy import deepcopy
+import numpy as np
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
-from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands
+from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands, drop_bad_banddef
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs, one_hot_encode_simulated_data
 from cover_class.static.retrieval import make_hdf5
 
@@ -68,6 +69,29 @@ def setup_training_from_config(
     )        
 
     return odl, FloatTensor(test_spectra), test_labels
+
+def banddef_from_config(config: str|Dict) -> FloatTensor:
+    """
+    Drops the appropriate bands from the band definition
+    """
+    config = read_config(config)
+    drop_bands = config['drop-bands-wavelengths']
+    file_wavelengths = np.array([])
+
+    for i, d in enumerate(config['datasets']):
+        hdf5_list = config['datasets'][d]
+        if hdf5_list is None: continue
+        # subsampling and train test split will happen on a per file basis
+        for hdf5 in hdf5_list:
+            with h5py.File(hdf5, 'r') as f:
+                file_wavelengths = f.attrs['wavelengths']
+                file_wavelengths = drop_bad_banddef(file_wavelengths, drop_bands)
+                break
+        if len(file_wavelengths) != 0:
+            break
+
+    return file_wavelengths
+
 
 def make_simulation_test_set(
         odl: DataLoader,
