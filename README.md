@@ -85,7 +85,7 @@ with Report(
                 "optimizer": "Muon",
             },
         ),
-        classification_threshold=0.1,
+        classification_threshold=[0.3 for _ in range(num_classes)],
         X_test=test_data,
         Y_test=test_labels,
         random_seed=42,
