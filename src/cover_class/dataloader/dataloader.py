@@ -134,6 +134,7 @@ def dataloader_from_config(
         labels:LongTensor,
         batch_size:int,
         shuffle: bool = True, 
+        misc_dataloader_params: dict = {},
     ) -> DataLoader:
 
     config = read_config(config)
@@ -148,4 +149,4 @@ def dataloader_from_config(
         labels.long()
     )
     ods = OrchestratorDataset(ods_args, shuffle)
-    return DataLoader(ods, batch_size=None)
+    return DataLoader(ods, batch_size=None, **misc_dataloader_params)
