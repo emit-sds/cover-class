@@ -48,14 +48,14 @@ def setup_training_from_config(
                 file_wavelengths = f.attrs['wavelengths']
                 file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
                 file_wavelengths = torch.from_numpy(drop_bad_banddef(file_wavelengths, drop_bands))
-                subsampled_spectra = subsample_from_config(config, file_spectra)
+                subsampled_spectra, method = subsample_from_config(config, hdf5, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
                 if (subsampled_files_outdir != '') and (method := config['subsample']['selected-method']) is not None:
                     Path(subsampled_files_outdir).mkdir(parents=True, exist_ok=True)
                     sconf: dict = config['subsample'][str(method).lower()]
                     rn = '_'+run_name if run_name else ''
-                    make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, rn, **sconf)
+                    make_hdf5(hdf5, subsampled_files_outdir, f'{d}_{method}_subsampled', file_wavelengths, subsampled_spectra, rn, **sconf)
 
                 X_train, X_test, Y_train, Y_test = train_test_split(subsampled_spectra, labels, config['subsample']['test-fraction'])
 

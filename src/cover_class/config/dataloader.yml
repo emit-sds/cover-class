@@ -26,6 +26,11 @@ simulation:
 subsample:
   test-fraction: 0.2
   selected-method: convex-hull
+  file-specific:
+    /some/path.hdf5:
+      kmedoids:
+        num_pc: 5
+        n_samples: 200
   convex-hull:
     num_pc: 1
     n_samples: 10
