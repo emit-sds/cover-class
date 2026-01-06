@@ -8,7 +8,7 @@ import os
 import getpass
 import matplotlib.pyplot as plt
 
-from cover_class.train import setup_training_from_config, make_simulation_test_set #type: ignore
+from cover_class.train import setup_training_from_config, make_simulation_test_set, make_run_name #type: ignore
 from cover_class.static.retrieval import generate_hdf5_from_config #type: ignore
 from cover_class.utils import seed as sseed #type: ignore
 from cover_class.reporting import ModelConfig, Report #type: ignore
@@ -100,8 +100,9 @@ def run_pipeline_classifier(
     if static_config:
         print("Creating HDF5s from config")
         generate_hdf5_from_config(static_config)
-        
-    dataloader, test_X, test_Y = setup_training_from_config(config, batch_size, True, seed, outdir)
+    
+    run_name = make_run_name()
+    dataloader, test_X, test_Y = setup_training_from_config(config, batch_size, True, seed, outdir, run_name)
 
     ## create simulation eval set
     sseed(seed)
@@ -157,6 +158,7 @@ def run_pipeline_classifier(
         Y_test=simulation_y_test,
         classification_threshold = [0.3 for _ in range(num_classes)],
         random_seed=seed,
+        run_name=run_name,
     ) as report:
         
         for batch_X, batch_Y in dataloader:
