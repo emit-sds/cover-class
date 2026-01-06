@@ -41,15 +41,19 @@ class subsampleTest(unittest.TestCase):
         torch.testing.assert_close(torch.from_numpy(data).to(torch.float32), result)
         self.assertEqual(method.lower(), 'none')
 
+    @patch('cover_class.subsample.forward_pipeline.lhs')
     @patch('cover_class.subsample.forward_pipeline.kmedoids')
     @patch('cover_class.subsample.forward_pipeline.read_config')
-    def test_subsample_from_config_override(self, rc_mock:Mock, kmed_mock:Mock):
+    def test_subsample_from_config_override(self, rc_mock:Mock, kmed_mock:Mock, lhs_mock:Mock):
         config = {
             'subsample': {
                 'selected-method':'convex-hull',
                 'file-specific': {
                     '/some/path.hdf5': {
                         'kmedoids': {'num_pc': 5, 'n_samples': 200}
+                    },
+                    '/some/other/path.hdf5': {
+                        'lhs': {'num_pc': 8, 'n_samples': 10, 'hypercubes_per_dimension': 2, 'samples_per_hypercube':2}
                     }
                 },
                 'convex-hull': {'num_pc':1, 'n_samples':2, 'qhull_options': 'x'},
@@ -68,6 +72,12 @@ class subsampleTest(unittest.TestCase):
         call_args = kmed_mock.call_args_list.pop()
         self.assertDictEqual(config['subsample']['file-specific']['/some/path.hdf5']['kmedoids'], call_args.kwargs) # type: ignore 
         self.assertEqual(method.lower(), 'kmedoids')
+
+        _, method = subsample_from_config('/path', '/some/other/path.hdf5', data)
+        lhs_mock.assert_called_once()
+        call_args = lhs_mock.call_args_list.pop()
+        self.assertDictEqual(config['subsample']['file-specific']['/some/other/path.hdf5']['lhs'], call_args.kwargs) # type: ignore 
+        self.assertEqual(method.lower(), 'lhs')
 
     def test_train_test_split(self):
         frac = 0.2
