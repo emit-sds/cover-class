@@ -37,9 +37,9 @@ class subsampleTest(unittest.TestCase):
 
         # test that any other value returns all data
         config['subsample']['selected-method'] = ''
-        result, method = subsample_from_config('/path', '', data)
+        result, method, _ = subsample_from_config('/path', '', data)
         torch.testing.assert_close(torch.from_numpy(data).to(torch.float32), result)
-        self.assertEqual(method.lower(), 'none')
+        self.assertEqual(method, None)
 
     @patch('cover_class.subsample.forward_pipeline.lhs')
     @patch('cover_class.subsample.forward_pipeline.kmedoids')
@@ -67,13 +67,13 @@ class subsampleTest(unittest.TestCase):
 
         # test override config - no override
         rc_mock.side_effect = lambda x: config
-        _, method = subsample_from_config('/path', '/some/path.hdf5', data)
+        _, method, _ = subsample_from_config('/path', '/some/path.hdf5', data)
         kmed_mock.assert_called_once()
         call_args = kmed_mock.call_args_list.pop()
         self.assertDictEqual(config['subsample']['file-specific']['/some/path.hdf5']['kmedoids'], call_args.kwargs) # type: ignore 
         self.assertEqual(method.lower(), 'kmedoids')
 
-        _, method = subsample_from_config('/path', '/some/other/path.hdf5', data)
+        _, method, _ = subsample_from_config('/path', '/some/other/path.hdf5', data)
         lhs_mock.assert_called_once()
         call_args = lhs_mock.call_args_list.pop()
         self.assertDictEqual(config['subsample']['file-specific']['/some/other/path.hdf5']['lhs'], call_args.kwargs) # type: ignore 

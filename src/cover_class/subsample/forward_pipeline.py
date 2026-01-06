@@ -16,7 +16,7 @@ def subsample_from_config(
         config:str|Dict, 
         file_name: str,
         data_matrix: NDArray[np.float32], 
-    ) -> Tuple[FloatTensor, str]:
+    ) -> Tuple[FloatTensor, Optional[str], Optional[dict]]:
 
     subsample_config:Dict = read_config(config)['subsample']
     specific = subsample_config.get('file-specific', None)
@@ -29,15 +29,15 @@ def subsample_from_config(
     
     match method:
         case 'convex-hull':
-            return convex_hull(data_matrix, **params), method
+            return convex_hull(data_matrix, **params), method, params
         case 'kmeans':
-            return kmeans(data_matrix, **params), method
+            return kmeans(data_matrix, **params), method, params
         case 'kmedoids':
-            return kmedoids(data_matrix, **params), method
+            return kmedoids(data_matrix, **params), method, params
         case 'lhs':
-            return lhs(data_matrix, **params), method
+            return lhs(data_matrix, **params), method, params
         case _:
-            return FloatTensor(torch.from_numpy(data_matrix).to(torch.float32)), 'none'
+            return FloatTensor(torch.from_numpy(data_matrix).to(torch.float32)), None, params
     return FloatTensor() # here for mypy
 
 def drop_bad_bands(
