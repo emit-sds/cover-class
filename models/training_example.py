@@ -135,7 +135,6 @@ def run_pipeline_classifier(
         def forward(self, x) -> torch.Tensor:
             return self.fc(x)
 
-    print('model definition')
     num_classes = len(torch.unique(test_Y))
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('device', device)
@@ -147,8 +146,8 @@ def run_pipeline_classifier(
     accumulator = 0
     losses = {"Welford arithmetic mean": 0., "loss": []}
 
-    print('Starting', flush=True)
-    with Report(
+    ## NOTE: It's important to instantiate the report object before the training run
+    report = Report(
         outdir=outdir,
         config=config,
         author=getpass.getuser(),
@@ -162,49 +161,48 @@ def run_pipeline_classifier(
                 "dims": [test_X.shape[1], 128, 64, 32, num_classes]
             },
         ),
-        X_test=simulation_x_test,
         Y_test=simulation_y_test,
-        classification_threshold = [0.5 for _ in range(num_classes)],
         random_seed=seed,
         run_name=run_name,
-    ) as report:
+    )
+    
+    for batch_X, batch_Y in dataloader:
+        accumulator += 1
+        if accumulator == max_training_steps:
+            break
+
+        optimizer.zero_grad(set_to_none=True)
+        logits: torch.Tensor = model(batch_X.to(device))
+        loss: torch.Tensor = criterion(logits, batch_Y.to(device))
+        loss.backward()
+        optimizer.step()
+    
+        nats = loss.cpu().item()
+
+        losses["loss"].append(nats) #type: ignore
+        losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
         
-        for batch_X, batch_Y in dataloader:
-            accumulator += 1
-            if accumulator == max_training_steps:
-                break
+        if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
+            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}")
+    
+    ## Save model
+    torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
+    model.eval()
 
-            optimizer.zero_grad(set_to_none=True)
-            logits: torch.Tensor = model(batch_X.to(device))
-            loss: torch.Tensor = criterion(logits, batch_Y.to(device))
-            loss.backward()
-            optimizer.step()
-        
-            nats = loss.cpu().item()
+    ## Generate a training loss plot in the report as well
+    fig, ax = plt.subplots()
+    ax.plot(losses["loss"]) # type: ignore
+    ax.set_title("Training Loss")
+    ax.set_xlabel("Step")
+    ax.set_ylabel("BCE nats")
+    report.train_figures.append(fig)
 
-            losses["loss"].append(nats) #type: ignore
-            losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
-            
-            if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
-                print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}", flush=True)
-        
-        ## Save model
-        torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
-
-        ## generate a training loss plot in the report as well
-        fig, ax = plt.subplots()
-        ax.plot(losses["loss"]) # type: ignore
-        ax.set_title("Training Loss")
-        ax.set_xlabel("Step")
-        ax.set_ylabel("BCE nats")
-        report.train_figures.append(fig)
-
-        # Pass result to context
-        model.eval()
-        with torch.no_grad():
-            y_hat = torch.sigmoid(model(report.X_test.to(device))).detach().cpu()
-            y_hat = (y_hat >= torch.tensor(report.classification_threshold)).to(torch.long)
-            report.y_hat = y_hat.numpy()
+    ## Finally, generate the report
+    with torch.no_grad():
+        y_hat = torch.sigmoid(model(simulation_x_test.to(device)))
+        y_hat = y_hat.detach().cpu()
+    thresholds = [0.5] * y_hat.shape[-1]
+    report.make_report(y_hat, thresholds)
 
 
 if __name__ == "__main__": 
