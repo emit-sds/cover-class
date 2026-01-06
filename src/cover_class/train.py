@@ -6,6 +6,7 @@ import torch
 import h5py # type: ignore[import]
 from copy import deepcopy
 import numpy as np
+from datetime import datetime
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
 from cover_class.utils import read_config, seed as sseed
@@ -13,12 +14,16 @@ from cover_class.subsample import subsample_from_config, train_test_split, drop_
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs, one_hot_encode_simulated_data
 from cover_class.static.retrieval import make_hdf5
 
+def make_run_name() -> str:
+    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
 def setup_training_from_config(
         config: str|Dict, 
         batch_size: int,
         shuffle: bool = True,
         seed: Optional[int] = None,
-        subsampled_files_outdir: str = ''
+        subsampled_files_outdir: str = '',
+        run_name: str = '',
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
     :param: simulated_test_set_n_rows = 0 means don't return a simulated set
@@ -42,13 +47,15 @@ def setup_training_from_config(
                 file_spectra = f['spectra'][:]
                 file_wavelengths = f.attrs['wavelengths']
                 file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
+                file_wavelengths = torch.from_numpy(drop_bad_banddef(file_wavelengths, drop_bands))
                 subsampled_spectra = subsample_from_config(config, file_spectra)
                 labels = torch.full((subsampled_spectra.shape[0],), i)
 
                 if (subsampled_files_outdir != '') and (method := config['subsample']['selected-method']) is not None:
                     Path(subsampled_files_outdir).mkdir(parents=True, exist_ok=True)
                     sconf: dict = config['subsample'][str(method).lower()]
-                    make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, **sconf)
+                    rn = '_'+run_name if run_name else ''
+                    make_hdf5(hdf5, subsampled_files_outdir, d+'_subsampled', file_wavelengths, subsampled_spectra, rn, **sconf)
 
                 X_train, X_test, Y_train, Y_test = train_test_split(subsampled_spectra, labels, config['subsample']['test-fraction'])
 
@@ -66,11 +73,11 @@ def setup_training_from_config(
         LongTensor(train_labels.to(dtype=torch.long)),
         batch_size,
         shuffle,
-    )        
+    )
 
     return odl, FloatTensor(test_spectra), test_labels
 
-def banddef_from_config(config: str|Dict) -> FloatTensor:
+def banddef_from_config(config: str|Dict) -> Tensor:
     """
     Drops the appropriate bands from the band definition
     """
@@ -90,7 +97,7 @@ def banddef_from_config(config: str|Dict) -> FloatTensor:
         if len(file_wavelengths) != 0:
             break
 
-    return file_wavelengths
+    return torch.from_numpy(file_wavelengths)
 
 
 def make_simulation_test_set(
