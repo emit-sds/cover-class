@@ -148,4 +148,4 @@ def dataloader_from_config(
         labels.long()
     )
     ods = OrchestratorDataset(ods_args, shuffle)
-    return DataLoader(ods, batch_size=None)
+    return DataLoader(ods, batch_size=None, num_workers=8)
