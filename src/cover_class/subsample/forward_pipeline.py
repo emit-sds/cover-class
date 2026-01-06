@@ -14,23 +14,32 @@ def train_test_split(data_matrix: FloatTensor, labels:Tensor, frac_test: float, 
 
 def subsample_from_config(
         config:str|Dict, 
+        file_name: str,
         data_matrix: NDArray[np.float32], 
-    ) -> FloatTensor:
+    ) -> Tuple[FloatTensor, Optional[str], Optional[dict]]:
 
     subsample_config:Dict = read_config(config)['subsample']
-    method:str = str(subsample_config['selected-method']).lower()
+    specific = subsample_config.get('file-specific', None)
+    if specific is not None and file_name in specific:
+        method:str  = str(list(specific[file_name].keys())[0])
+        params:dict = specific[file_name][method]
+        method = method.lower()
+    else:
+        method = str(subsample_config['selected-method'])
+        params = subsample_config.get(method, None)
+        method = method.lower()
     
     match method:
         case 'convex-hull':
-            return convex_hull(data_matrix, **subsample_config[method])
+            return convex_hull(data_matrix, **params), method, params
         case 'kmeans':
-            return kmeans(data_matrix, **subsample_config[method])
+            return kmeans(data_matrix, **params), method, params
         case 'kmedoids':
-            return kmedoids(data_matrix, **subsample_config[method])
+            return kmedoids(data_matrix, **params), method, params
         case 'lhs':
-            return lhs(data_matrix, **subsample_config[method])
+            return lhs(data_matrix, **params), method, params
         case _:
-            return FloatTensor(torch.from_numpy(data_matrix).to(torch.float32))
+            return FloatTensor(torch.from_numpy(data_matrix).to(torch.float32)), None, None
     return FloatTensor() # here for mypy
 
 def drop_bad_bands(

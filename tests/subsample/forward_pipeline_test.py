@@ -29,16 +29,55 @@ class subsampleTest(unittest.TestCase):
             t, m = item
             config['subsample']['selected-method'] = t
             rc_mock.side_effect = lambda x: config
-            subsample_from_config('/path', data)
+            subsample_from_config('/path', '/example/test.txt', data)
             m.assert_called_once()
-            call_args = m.call_args_list.pop()
+            call_args = m.call_args_list.pop() 
             self.assertDictEqual(config['subsample'][t], call_args.kwargs) # type: ignore 
         list(map(check_args, {'convex-hull':cv_mock, 'kmeans':km_mock, 'kmedoids':kmed_mock, 'lhs':lhs_mock}.items()))
 
         # test that any other value returns all data
         config['subsample']['selected-method'] = ''
-        result = subsample_from_config('/path', data)
+        result, method, _ = subsample_from_config('/path', '', data)
         torch.testing.assert_close(torch.from_numpy(data).to(torch.float32), result)
+        self.assertEqual(method, None)
+
+    @patch('cover_class.subsample.forward_pipeline.lhs')
+    @patch('cover_class.subsample.forward_pipeline.kmedoids')
+    @patch('cover_class.subsample.forward_pipeline.read_config')
+    def test_subsample_from_config_override(self, rc_mock:Mock, kmed_mock:Mock, lhs_mock:Mock):
+        config = {
+            'subsample': {
+                'selected-method':'convex-hull',
+                'file-specific': {
+                    '/some/path.hdf5': {
+                        'kmedoids': {'num_pc': 5, 'n_samples': 200}
+                    },
+                    '/some/other/path.hdf5': {
+                        'lhs': {'num_pc': 8, 'n_samples': 10, 'hypercubes_per_dimension': 2, 'samples_per_hypercube':2}
+                    }
+                },
+                'convex-hull': {'num_pc':1, 'n_samples':2, 'qhull_options': 'x'},
+                'kmeans': {'num_pc':1, 'n_samples':2, 'init': 'x'},
+                'kmedoids': {'num_pc':1, 'n_samples':2, 'metric': 'euclidean'},
+                'lhs': {'num_pc':1, 'n_samples':2, 'hypercubes_per_dimension': 3, 'samples_per_hypercube':4},
+                'fail': {},
+            },
+        }
+        data = np.array([0xD, 0xE, 0xA, 0xD, 0xD, 0xE, 0xA, 0xD])
+
+        # test override config - no override
+        rc_mock.side_effect = lambda x: config
+        _, method, _ = subsample_from_config('/path', '/some/path.hdf5', data)
+        kmed_mock.assert_called_once()
+        call_args = kmed_mock.call_args_list.pop()
+        self.assertDictEqual(config['subsample']['file-specific']['/some/path.hdf5']['kmedoids'], call_args.kwargs) # type: ignore 
+        self.assertEqual(method.lower(), 'kmedoids')
+
+        _, method, _ = subsample_from_config('/path', '/some/other/path.hdf5', data)
+        lhs_mock.assert_called_once()
+        call_args = lhs_mock.call_args_list.pop()
+        self.assertDictEqual(config['subsample']['file-specific']['/some/other/path.hdf5']['lhs'], call_args.kwargs) # type: ignore 
+        self.assertEqual(method.lower(), 'lhs')
 
     def test_train_test_split(self):
         frac = 0.2
