@@ -108,7 +108,7 @@ report.test_figures.append(
     some_cool_test_figure_generator_from_my_data(model, test_data)
 )
 report.test_metric_table.update(
-    {'import test metric': generate_test_metric(model, test_data)}
+    {'important test metric': generate_test_metric(model, test_data)}
 )
 
 ## Finally, generate the report
