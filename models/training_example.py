@@ -194,9 +194,8 @@ def run_pipeline_classifier(
     ## Finally, generate the report
     with torch.no_grad():
         y_hat = torch.sigmoid(model(simulation_x_test))
-        thresholds = torch.tensor([0.5] * y_hat.shape[-1], device=y_hat.device, dtype=y_hat.dtype)
-        y_hat = (y_hat >= thresholds).to(torch.long)
-    report.make_report(y_hat, thresholds.tolist())
+    thresholds = [0.5] * y_hat.shape[-1]
+    report.make_report(y_hat, thresholds)
 
 if __name__ == "__main__": 
     run_pipeline_classifier()

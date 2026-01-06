@@ -100,7 +100,7 @@ for X, Y in dataloader:
 
 ## Or add in any figures
 report.train_figures.append(
-    make_some_really_import_figure_I_want_to_show_from_my_training_logs(model, train_data)
+    make_some_really_important_figure_I_want_to_show_from_my_training_logs(model, train_data)
 )
 
 ## And then add in any testing figures or metrics to the report as well
@@ -115,6 +115,5 @@ report.test_metric_table.update(
 with torch.no_grad():
     y_hat = torch.sigmoid(model(test_data))
     thresholds = ...
-    y_hat = (y_hat >= thresholds).to(torch.long)
 report.make_report(y_hat, thresholds)
 ```

@@ -51,7 +51,6 @@ class Report:
     test_figures: List[Figure] = field(default_factory=list)
     train_metric_table: Optional[dict] = None
     test_metric_table: Optional[dict] = None
-    class_thresholds: List[float] = field(default_factory=list)
     author: Optional[str] = None
     wandb_link: Optional[str] = None
     random_seed: Optional[int] = None
@@ -80,20 +79,27 @@ class Report:
             uris = read_config(self.config).get("test-scene-urls", [])
             self.qualitative_testing_scenes_paths.extend(download_scenes(uris))
 
-    def make_report(self, y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]] = None):
-        y_hat = make_numpy(y_hat)
+    def make_report(self, y_hat: Tensor, class_thresholds: List[float]):
+        assert len(class_thresholds) == y_hat.shape[-1], f"Got {len(class_thresholds)} thresholds for {y_hat.shape[-1]} classes"
+
+        y_hat_binary = (y_hat >= torch.tensor(class_thresholds, device=y_hat.device, dtype=y_hat.dtype)).to(torch.long)
+        y_hat_binary = make_numpy(y_hat_binary) # type: ignore
+        y_hat = make_numpy(y_hat) # type: ignore
 
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
+        
         assert y_hat.shape[-1] == len(class_names), f"Got {y_hat.shape[-1]} classes in y_hat, but {len(class_names)} classes from the config"
-        cm_plot            = confusion_matrix(y_hat, self.Y_test, class_names)
-        mcc_plot           = missed_class_confusion(y_hat, self.Y_test, class_names)
-        rates              = tpr_fpr(y_hat, self.Y_test, class_names)
-        f1_scores          = f_beta_scores(y_hat, self.Y_test, class_names)
+        assert len(class_thresholds) == len(class_names), f"Got {len(class_thresholds)} class thresholds, but {len(class_names)} classes from the config"
+
+        cm_plot            = confusion_matrix(y_hat_binary, self.Y_test, class_names)
+        mcc_plot           = missed_class_confusion(y_hat_binary, self.Y_test, class_names)
+        rates              = tpr_fpr(y_hat_binary, self.Y_test, class_names)
+        f1_scores          = f_beta_scores(y_hat_binary, self.Y_test, class_names)
         roc_plot, roc_dict = roc_auc(y_hat, self.Y_test, class_names)
         # zip together the metric dicts
-        metrics: Dict = {c:{} for c in class_names}
+        metrics: Dict = {class_names[i]:{'Threshold': class_thresholds[i]} for i in range(len(class_names))}
         for m in [rates, f1_scores, roc_dict]:
             for k, v in m.items():
                 metrics[k].update(v)
@@ -102,12 +108,6 @@ class Report:
         if self.test_metric_table is None:
             self.test_metric_table = {}
         self.test_metric_table.update(metrics)
-
-        self.class_thresholds = class_thresholds or self.class_thresholds
-        if self.class_thresholds:
-            assert len(self.class_thresholds) == len(class_names), f"Got {len(self.class_thresholds)} classes thresholds, but {len(class_names)} classes from the config"
-            for i in range(len(class_names)):
-                self.test_metric_table[class_names[i]]['Threshold'] = self.class_thresholds[i]
 
         # 2. Generate Report
         os.makedirs(self.outdir, exist_ok=True)
