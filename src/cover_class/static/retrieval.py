@@ -60,7 +60,7 @@ def vfs_csv(path:str|BytesIO) -> Tuple[NDArray[np.float32], NDArray[np.float32]]
     return wavelengths, spectra
 
 
-def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tensor, spectra:torch.FloatTensor, **attrs) -> str:
+def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tensor, spectra:torch.FloatTensor, run_name: str = '', **attrs) -> str:
     '''
     HDF5 contents:
     datasets:
@@ -73,7 +73,7 @@ def make_hdf5(original_path:str, outpath:str, class_:str, wavelengths:torch.Tens
     HDF5 output location: '{outpath}/{name of class from config file}_{original data filename}.hdf5'
     '''
     ofn = Path(original_path).stem
-    outname = Path(outpath)/f'{class_}_{ofn}.hdf5'
+    outname = Path(outpath)/f'{class_}_{ofn}{run_name}.hdf5'
     with h5py.File(outname, 'w') as f:
         f.create_dataset('spectra', data=spectra)
         f.attrs['wavelengths'] = wavelengths

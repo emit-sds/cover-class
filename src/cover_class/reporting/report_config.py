@@ -58,6 +58,7 @@ class Report:
     random_seed: Optional[int] = None
     notes: Optional[str] = None
     timestamp: Optional[str] = None
+    run_name: Optional[str] = None
     qualitative_testing_scenes_paths: List[str] = field(default_factory=list)
     _download_missing_qualitative_testing_scenes_from_config: bool = True
 
@@ -125,7 +126,8 @@ class Report:
 
         # 2. Generate Report
         os.makedirs(self.outdir, exist_ok=True)
-        pdf_path = os.path.join(self.outdir, f"{self.model_config.model_name}_{str(self.timestamp).replace(":", "-")}.pdf")
+        rn = self.run_name if self.run_name else str(self.timestamp).replace(":", "-")
+        pdf_path = os.path.join(self.outdir, f"{self.model_config.model_name}_{rn}.pdf")
         json_path = pdf_path.replace('.pdf', '.json')
         generate_pdf_report(self, pdf_path)
         generate_json_report(self, json_path)
