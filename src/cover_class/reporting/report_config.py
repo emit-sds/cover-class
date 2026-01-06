@@ -43,10 +43,8 @@ class Report:
     outdir: str
     config: str|Dict
     model_config: ModelConfig
-    X_test: Union[Tensor, NDArray]
     Y_test: Union[Tensor, NDArray]
 
-    classification_threshold: Optional[List[float]] = None
     train_plots: List[GenLinePlot] = field(default_factory=list)
     test_plots: List[GenLinePlot] = field(default_factory=list)
     train_figures: List[Figure] = field(default_factory=list)
@@ -71,13 +69,6 @@ class Report:
         if self.author is None:
             self.author = getpass.getuser()
 
-        # make the per-class classification thresholds
-        n_classes = self.Y_test.shape[-1]
-        if self.classification_threshold is not None:
-            assert len(self.classification_threshold) == n_classes, f"There are {len(self.classification_threshold)} class thresholds, but {n_classes} classes"
-        else:
-            self.classification_threshold = [0.5 for _ in range(n_classes)]
-
         # finally, make sure that all of the qualitative scenes are installed
         if len(self.qualitative_testing_scenes_paths):
             for i, f in enumerate(self.qualitative_testing_scenes_paths):
@@ -88,33 +79,27 @@ class Report:
             uris = read_config(self.config).get("test-scene-urls", [])
             self.qualitative_testing_scenes_paths.extend(download_scenes(uris))
 
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, _, __, ___):
-        self.make_report()
+    def make_report(self, y_hat: Tensor, class_thresholds: List[float]):
+        assert len(class_thresholds) == y_hat.shape[-1], f"Got {len(class_thresholds)} thresholds for {y_hat.shape[-1]} classes"
 
-    def make_report(self):
-        if isinstance(self.model_config.model, torch.nn.Module):
-            self.model_config.model.eval()
-            with torch.no_grad():
-                y_hat = torch.sigmoid(self.model_config.model(self.X_test))
-        else:
-            y_hat = torch.from_numpy(self.model_config.model(self.X_test))
-            y_hat = torch.sigmoid(y_hat)
-        y_hat = (y_hat >= torch.tensor(self.classification_threshold)).to(torch.long)
-        y_hat = make_numpy(y_hat)
+        y_hat_binary = (y_hat >= torch.tensor(class_thresholds, device=y_hat.device, dtype=y_hat.dtype)).to(torch.long)
+        y_hat_binary = make_numpy(y_hat_binary) # type: ignore
+        y_hat = make_numpy(y_hat) # type: ignore
 
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
-        cm_plot            = confusion_matrix(y_hat, self.Y_test, class_names)
-        mcc_plot           = missed_class_confusion(y_hat, self.Y_test, class_names)
-        rates              = tpr_fpr(y_hat, self.Y_test, class_names)
-        f1_scores          = f_beta_scores(y_hat, self.Y_test, class_names)
+        
+        assert y_hat.shape[-1] == len(class_names), f"Got {y_hat.shape[-1]} classes in y_hat, but {len(class_names)} classes from the config"
+        assert len(class_thresholds) == len(class_names), f"Got {len(class_thresholds)} class thresholds, but {len(class_names)} classes from the config"
+
+        cm_plot            = confusion_matrix(y_hat_binary, self.Y_test, class_names)
+        mcc_plot           = missed_class_confusion(y_hat_binary, self.Y_test, class_names)
+        rates              = tpr_fpr(y_hat_binary, self.Y_test, class_names)
+        f1_scores          = f_beta_scores(y_hat_binary, self.Y_test, class_names)
         roc_plot, roc_dict = roc_auc(y_hat, self.Y_test, class_names)
         # zip together the metric dicts
-        metrics = {c:{} for c in class_names}
+        metrics: Dict = {class_names[i]:{'Threshold': class_thresholds[i]} for i in range(len(class_names))}
         for m in [rates, f1_scores, roc_dict]:
             for k, v in m.items():
                 metrics[k].update(v)
