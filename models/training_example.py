@@ -140,7 +140,8 @@ def run_pipeline_classifier(
     accumulator = 0
     losses = {"Welford arithmetic mean": 0., "loss": []}
 
-    with Report(
+    ## NOTE: It's important to instantiate the report object before the training run
+    report = Report(
         outdir=outdir,
         config=config,
         author=getpass.getuser(),
@@ -154,43 +155,48 @@ def run_pipeline_classifier(
                 "dims": [test_X.shape[1], 128, 64, 32, num_classes]
             },
         ),
-        X_test=simulation_x_test,
         Y_test=simulation_y_test,
-        classification_threshold = [0.3 for _ in range(num_classes)],
         random_seed=seed,
         run_name=run_name,
-    ) as report:
-        
-        for batch_X, batch_Y in dataloader:
-            accumulator += 1
-            if accumulator == max_training_steps:
-                break
+    )
+    
+    for batch_X, batch_Y in dataloader:
+        accumulator += 1
+        if accumulator == max_training_steps:
+            break
 
-            optimizer.zero_grad(set_to_none=True)
-            logits: torch.Tensor = model(batch_X)
-            loss: torch.Tensor = criterion(logits, batch_Y)
-            loss.backward()
-            optimizer.step()
-        
-            nats = loss.item()
+        optimizer.zero_grad(set_to_none=True)
+        logits: torch.Tensor = model(batch_X)
+        loss: torch.Tensor = criterion(logits, batch_Y)
+        loss.backward()
+        optimizer.step()
+    
+        nats = loss.item()
 
-            losses["loss"].append(nats) #type: ignore
-            losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
-            
-            if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
-                print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}")
+        losses["loss"].append(nats) #type: ignore
+        losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
         
-        ## Save model
-        torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
-        model.eval()
+        if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
+            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}")
+    
+    ## Save model
+    torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
+    model.eval()
 
-        ## generate a training loss plot in the report as well
-        fig, ax = plt.subplots()
-        ax.plot(losses["loss"]) # type: ignore
-        ax.set_title("Training Loss")
-        ax.set_xlabel("Step")
-        ax.set_ylabel("BCE nats")
-        report.train_figures.append(fig)
+    ## Generate a training loss plot in the report as well
+    fig, ax = plt.subplots()
+    ax.plot(losses["loss"]) # type: ignore
+    ax.set_title("Training Loss")
+    ax.set_xlabel("Step")
+    ax.set_ylabel("BCE nats")
+    report.train_figures.append(fig)
+
+    ## Finally, generate the report
+    with torch.no_grad():
+        y_hat = torch.sigmoid(model(simulation_x_test))
+        thresholds = torch.tensor([0.5] * y_hat.shape[-1], device=y_hat.device, dtype=y_hat.dtype)
+        y_hat = (y_hat >= thresholds).to(torch.long)
+    report.make_report(y_hat, thresholds.tolist())
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
