@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple, Dict
 import numpy as np
 from torch import FloatTensor, Tensor
 import torch
+from dataclasses import dataclass
 
 from cover_class.utils import read_config
 
@@ -62,3 +63,8 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         real_labels = labels
     )
     return s, d
+
+@dataclass
+class ForceFracRange:
+    low: int
+    high: int

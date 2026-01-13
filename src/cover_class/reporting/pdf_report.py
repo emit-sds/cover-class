@@ -55,7 +55,8 @@ def _metrics_table(contents: List, styles: Dict, metrics: Dict, title: str) -> N
             metric_tables.append(make_table([[str(k), "Value"]] + [[str(i), str(j)] for i, j in v.items()]))
         else:
             data.append([str(k), str(v)])
-    metric_tables.append(make_table(data))
+    if len(data) >1:
+        metric_tables.append(make_table(data))
 
     # chunk into rows of 4
     rows = [metric_tables[i:i+4] for i in range(0, len(metric_tables), 4)]
@@ -243,6 +244,11 @@ def generate_pdf_report(
     contents.append(Spacer(1, 0.1 * inch))
     if report_config.test_metric_table:
         _metrics_table(contents, report_styles, report_config.test_metric_table, "Test Metrics")
+        contents.append(Spacer(1, 0.1 * inch))
+    if report_config.fractional_simulation_test_results:
+        _metrics_table(contents, report_styles, report_config._fractional_simulation_test_dict['TPR'], "Fractional Simulation TPR")
+        contents.append(Spacer(1, 0.1 * inch))
+        _metrics_table(contents, report_styles, report_config._fractional_simulation_test_dict['FPR'], "Fractional Simulation FPR")
         contents.append(Spacer(1, 0.1 * inch))
     contents.append(Paragraph("Testing Plots", report_styles["Heading2"]))
     contents.append(Spacer(1, 0.1 * inch))

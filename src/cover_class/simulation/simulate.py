@@ -15,12 +15,34 @@ import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
 from torch import device as Device
 
-from cover_class.simulation.args import SimulationArgs, DataArgs
+from cover_class.simulation.args import SimulationArgs, DataArgs, ForceFracRange
 
 
 # The masked out alpha value will be 2^-126, the IEEE 754 smallest positive float32 value
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
+
+def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
+    if force_frac_range is None or force_class is None:
+        return dirich_fractions
+
+    # 1. get the index of the force class from comparing classes to cumsum_n_components
+    rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
+    fcol = (classes == force_class).long().argmax(1)
+    fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
+
+    # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
+    old  = dirich_fractions[rows, fidx]
+    new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
+
+    # 5. return the newly adjusted fractions
+    other = 1 - old
+    ok = other > 0
+    dirich_fractions[~ok] = 0.0
+    dirich_fractions[rows[~ok], fidx[~ok]] = 1
+    dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
+    dirich_fractions[rows[ok], fidx[ok]] = new[ok]
+    return dirich_fractions
 
 
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
@@ -35,7 +57,9 @@ def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTe
 def run_simulation(
         sim_args:  SimulationArgs, 
         data_args: DataArgs, 
-        device:    Device = Device("cpu")
+        device:    Device = Device("cpu"),
+        force_class: Optional[int] = None,
+        force_frac_range: Optional[ForceFracRange] = None,
     
     ) -> Tuple[FloatTensor, LongTensor, Optional[FloatTensor]]:
 
@@ -43,7 +67,7 @@ def run_simulation(
     data_args.to(device)
 
     with torch.no_grad():
-        classes, cumsum_n_components = _0_init_simulation_state(sim_args, device)
+        classes, cumsum_n_components = _0_init_simulation_state(sim_args, device, force_class)
 
         simulation_space_size = (sim_args.n_iters, int(cumsum_n_components.max().item()))
         alpha = _1_generate_alpha(
@@ -60,6 +84,7 @@ def run_simulation(
         del alpha
 
         dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
+        dirich_fractions = force_fractions(dirich_fractions, force_frac_range, force_class, classes, cumsum_n_components)
         
         filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
         # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
@@ -102,8 +127,9 @@ def run_simulation(
 
 
 def _0_init_simulation_state(
-        sim_args: SimulationArgs,
-        device:   Device
+        sim_args:    SimulationArgs,
+        device:      Device,
+        force_class: Optional[int] = None,
 
     ) -> Tuple[
         CharTensor, # classes
@@ -119,12 +145,20 @@ def _0_init_simulation_state(
     )
 
     n_components_numpy: npt.NDArray[np.int32] = np.random.choice(sim_args.n_components, size, replace=True).astype(np.int32)
+    n_components = torch.from_numpy(n_components_numpy).to(dtype=torch.int64, device=device)
 
-    cumsum_n_components = (torch.
-        from_numpy(n_components_numpy).to(dtype=torch.int64, device=device).
-        cumsum_(dim=1)
-    )
-    cumsum_n_components = F.pad(cumsum_n_components, (1, 0), value=0)  # pad left size with zeros
+    if force_class is not None:
+        # Add in the force class to every row
+        missing = ~(classes == force_class).any(dim=1)
+        if missing.any():
+            cols = torch.randint(low=0, high=size[1], size=(int(missing.sum().item()),), device=device)
+            rows = missing.nonzero(as_tuple=False).squeeze(1)
+            classes[rows, cols] = force_class
+        
+        # And force it to have 1 component (only draw 1 real sample)
+        n_components[(classes == force_class)] = 1
+
+    cumsum_n_components = F.pad(n_components.cumsum_(dim=1), (1, 0), value=0)  # pad left size with zeros
 
     return classes, cumsum_n_components # type: ignore[return-value]
 
@@ -179,6 +213,7 @@ def _3_remove_small_fractions(
 
     # now we need to align the matrix again
     return dirich_fractions.gather(1, (dirich_fractions != 0).int().argsort(descending=True)) # type: ignore[return-value]
+
 
 def _4_stratified_split(
         filtered_n_components_per_class: ShortTensor, 
