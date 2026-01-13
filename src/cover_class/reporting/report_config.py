@@ -128,7 +128,7 @@ class Report:
                     continue
                 f_y_hat_binary = (f.y_hat >= torch.tensor(thresh, device=f.y_hat.device, dtype=f.y_hat.dtype)).to(torch.long)
                 rates = tpr_fpr(f_y_hat_binary, f.y, class_names)[class_name]
-                rname = f'{f.range_low} - {f.range_high} %'
+                rname = f'{f.range_low*100} - {f.range_high*100} %'
                 self._fractional_simulation_test_dict['TPR'][class_name][rname] = rates['TPR']
                 self._fractional_simulation_test_dict['FPR'][class_name][rname] = rates['FPR']
 

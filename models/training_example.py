@@ -193,7 +193,7 @@ def run_pipeline_classifier(
     report.train_figures.append(fig)
 
     ## Generate fractional simulation data for each class to test model performance on
-    fraction_ranges = [(0.1, 0.5), (0.5, 0.10), (0.10, 0.15), (0.15, 0.25), (0.25, 0.5)]
+    fraction_ranges = [(0.01, 0.05), (0.05, 0.10), (0.10, 0.15), (0.15, 0.25), (0.25, 0.50)]
     simulated_test_set_size = 100
     fs = ForcedFractionSimulation(dataloader, test_X, test_Y, simulated_test_set_size, fraction_ranges)
     for frac_sim_data, _ in fs:
