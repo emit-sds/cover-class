@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from cover_class.train import setup_training_from_config, make_simulation_test_set, make_run_name #type: ignore
 from cover_class.static.retrieval import generate_hdf5_from_config #type: ignore
 from cover_class.utils import seed as sseed #type: ignore
+from cover_class.utils import ood_test_set_from_config # type: ignore
 from cover_class.reporting import ModelConfig, Report #type: ignore
 
 ENV_VAR_PREFIX = 'COVER_CLASS_TRAIN_'
@@ -108,6 +109,9 @@ def run_pipeline_classifier(
     sseed(seed)
     simulation_x_test, simulation_y_test, _ = make_simulation_test_set(dataloader, test_X, test_Y, simulated_test_set_size)
 
+    ## create the OOD test set
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(config)
+
     class MultiLabelClassifier(nn.Module):
         def __init__(self, input_dim, num_classes):
             super().__init__()
@@ -156,6 +160,7 @@ def run_pipeline_classifier(
             },
         ),
         Y_test=simulation_y_test,
+        Y_ood_test=ood_test_set_y,
         random_seed=seed,
         run_name=run_name,
     )
@@ -194,8 +199,9 @@ def run_pipeline_classifier(
     ## Finally, generate the report
     with torch.no_grad():
         y_hat = torch.sigmoid(model(simulation_x_test))
+        y_hat_ood = torch.sigmoid(model(ood_test_set_x))
     thresholds = [0.5] * y_hat.shape[-1]
-    report.make_report(y_hat, thresholds)
+    report.make_report(y_hat, thresholds, y_hat_ood)
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
