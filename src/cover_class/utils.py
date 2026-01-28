@@ -37,16 +37,16 @@ def load_rfl(hdr_fp:str) -> Tuple[np.ndarray, np.ndarray]:
 
 def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_missed_class: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
     config = read_config(c)
-    class_order: List[str] = config['datasets'].keys()
+    class_order: List[str] = [d for d in config['datasets'].keys() if config['datasets'][d] is not None]
 
     with h5py.File(config['ood-test-set'], 'r') as f:
-        labels  = np.asarray(f['labels'])
-        classes = np.asarray(f.attrs['classes']).astype(str) # type: ignore
+        labels  = np.asarray(f['labels'][:])
+        classes = np.asarray(f.attrs['classes'][:]).astype(str) # type: ignore
 
         present = (labels != 0) if include_unknown else (labels != 0) & (labels != 2)
         idx = {c: j for j, c in enumerate(classes)}
 
-        X = torch.from_numpy(f['spectra']).to(torch.float32)
+        X = torch.from_numpy(f['spectra'][:]).to(torch.float32)
         Y = np.zeros((labels.shape[0], len(class_order)), dtype=np.uint8)
         for i, name in enumerate(class_order):
             Y[:, i] = present[:, idx[name]].astype(np.uint8)

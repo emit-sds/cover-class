@@ -111,6 +111,8 @@ def run_pipeline_classifier(
 
     ## create the OOD test set
     ood_test_set_x, ood_test_set_y = ood_test_set_from_config(config)
+    ood_test_set_x = torch.rand((len(ood_test_set_y), simulation_x_test.shape[1])) # NOTE: This is only to force an example
+    assert ood_test_set_x.shape[-1] == simulation_x_test.shape[-1], "Mismatched test set shapes"
 
     class MultiLabelClassifier(nn.Module):
         def __init__(self, input_dim, num_classes):

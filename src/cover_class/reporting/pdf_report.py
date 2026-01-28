@@ -152,7 +152,7 @@ def add_section(
         fn: int, 
         contents: List[Any], 
         metric_table: Optional[dict], 
-        plots: List[GenLinePlot], 
+        plots: List[Any], 
         figures: List[Figure], 
         report_styles: StyleSheet1, 
         title: str
