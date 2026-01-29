@@ -13,6 +13,7 @@ datasets:
   ash+char:
   snow+ice:
   water:
+ood-test-set: /some/path.hdf5
 simulation:
   n_components: [1,5]
   n_classes_in_subsets: 3
@@ -58,6 +59,8 @@ subsample:
     n_samples: 10
     hypercubes_per_dimension: 3
     samples_per_hypercube: 3
+  random:
+    n_samples: 10
 dataloader:
   percent-static-data: 0.5
 test-scene-urls:

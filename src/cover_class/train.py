@@ -24,6 +24,7 @@ def setup_training_from_config(
         seed: Optional[int] = None,
         subsampled_files_outdir: str = '',
         run_name: str = '',
+        misc_dataloader_params: dict = {},
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
     :param: simulated_test_set_n_rows = 0 means don't return a simulated set
@@ -72,6 +73,7 @@ def setup_training_from_config(
         LongTensor(train_labels.to(dtype=torch.long)),
         batch_size,
         shuffle,
+        misc_dataloader_params,
     )
 
     return odl, FloatTensor(test_spectra), test_labels

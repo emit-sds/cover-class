@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, TYPE_CHECKING
+from typing import Any, List, Dict, Optional, TYPE_CHECKING
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -20,7 +20,7 @@ from reportlab.platypus import ( # type: ignore[import]
     Image,
     PageBreak,
 )
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle # type: ignore[import]
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle, StyleSheet1 # type: ignore[import]
 from reportlab.lib.units import inch # type: ignore[import]
 
 from cover_class.reporting.utils import inference_over_scene, rgb_from_scene
@@ -149,6 +149,45 @@ def _add_styles():
     return styles
 
 
+def add_section(
+        fn: int, 
+        contents: List[Any], 
+        metric_table: Optional[dict], 
+        plots: List[Any], 
+        figures: List[Figure], 
+        report_styles: StyleSheet1, 
+        title: str,
+        fractional_simulation_test_dict: Optional[dict],
+    ) -> int:
+
+    contents.append(Paragraph(f"{title} Report", report_styles["Heading1"]))
+    contents.append(Spacer(1, 0.1 * inch))
+    if metric_table:
+        _metrics_table(contents, report_styles, metric_table, f"{title} Metrics")
+        contents.append(Spacer(1, 0.1 * inch))
+    if fractional_simulation_test_dict is not None:
+        _metrics_table(contents, report_styles, fractional_simulation_test_dict['TPR'], "Fractional Simulation TPR")
+        contents.append(Spacer(1, 0.1 * inch))
+        _metrics_table(contents, report_styles, fractional_simulation_test_dict['FPR'], "Fractional Simulation FPR")
+        contents.append(Spacer(1, 0.1 * inch))
+    contents.append(Paragraph(f"{title} Plots", report_styles["Heading2"]))
+    contents.append(Spacer(1, 0.1 * inch))
+
+    for i, glp in enumerate(plots, start=1):
+        fn += 1
+        fig = _genlineplot_to_figure(glp)
+        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[{title}] Figure {fn}: {glp.title}"))
+        contents.append(Spacer(1, 0.1 * inch))
+        plt.close(fig)
+
+    for i, fig in enumerate(figures, start=1):
+        fn += 1
+        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[{title}] Figure {fn}"))
+        contents.append(Spacer(1, 0.5 * inch))
+    contents.append(PageBreak())
+    return fn
+
+
 def generate_pdf_report(
     report_config: "Report",
     pdf_path: str
@@ -215,56 +254,17 @@ def generate_pdf_report(
 
 
     ############### Training report: ##############
-    fn = 0
-    contents.append(Paragraph("Training Report", report_styles["Heading1"]))
-    contents.append(Spacer(1, 0.1 * inch))
-    if report_config.train_metric_table:
-        _metrics_table(contents, report_styles, report_config.train_metric_table, "Training Metrics")
-        contents.append(Spacer(1, 0.1 * inch))
-    contents.append(Paragraph("Training Plots", report_styles["Heading2"]))
-    contents.append(Spacer(1, 0.1 * inch))
-
-    for i, glp in enumerate(report_config.train_plots, start=1):
-        fn += 1
-        fig = _genlineplot_to_figure(glp)
-        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[Train] Figure {fn}: {glp.title}"))
-        contents.append(Spacer(1, 0.1 * inch))
-        plt.close(fig)
-
-    for i, fig in enumerate(report_config.train_figures, start=1):
-        fn += 1
-        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[Train] Figure {fn}"))
-        contents.append(Spacer(1, 0.5 * inch))
-    contents.append(PageBreak())
+    fn = add_section(0, contents, report_config.train_metric_table, report_config.train_plots, report_config.train_figures, report_styles, "Train", None)
     ###############################################
 
 
     ############### Testing report: ###############
-    contents.append(Paragraph("Testing Report", report_styles["Heading1"]))
-    contents.append(Spacer(1, 0.1 * inch))
-    if report_config.test_metric_table:
-        _metrics_table(contents, report_styles, report_config.test_metric_table, "Test Metrics")
-        contents.append(Spacer(1, 0.1 * inch))
-    if report_config.fractional_simulation_test_results:
-        _metrics_table(contents, report_styles, report_config._fractional_simulation_test_dict['TPR'], "Fractional Simulation TPR")
-        contents.append(Spacer(1, 0.1 * inch))
-        _metrics_table(contents, report_styles, report_config._fractional_simulation_test_dict['FPR'], "Fractional Simulation FPR")
-        contents.append(Spacer(1, 0.1 * inch))
-    contents.append(Paragraph("Testing Plots", report_styles["Heading2"]))
-    contents.append(Spacer(1, 0.1 * inch))
+    d = report_config._fractional_simulation_test_dict if report_config.fractional_simulation_test_results else None
+    fn = add_section(fn, contents, report_config.test_metric_table, report_config.test_plots, report_config.test_figures, report_styles, "Test", d)
+    ###############################################
 
-    for i, glp in enumerate(report_config.test_plots, start=1):
-        fn += 1
-        fig = _genlineplot_to_figure(glp)
-        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[Test] Figure {fn}: {glp.title}"))
-        contents.append(Spacer(1, 0.1 * inch))
-        plt.close(fig)
-
-    for i, fig in enumerate(report_config.test_figures, start=1):
-        fn += 1
-        contents.extend(_figure_to_image_contents(fig, report_styles, caption=f"[Test] Figure {fn}"))
-        contents.append(Spacer(1, 0.5 * inch))
-    contents.append(PageBreak())
+    ############### OOD Testing report: ###############
+    fn = add_section(fn, contents, report_config.ood_test_metric_table, report_config.ood_test_plots, report_config.ood_test_figures, report_styles, "OOD Test", None)
     ###############################################
 
 
