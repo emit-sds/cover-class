@@ -13,6 +13,7 @@ datasets:
   ash+char:
   snow+ice:
   water:
+ood-test-set: /some/path.hdf5
 simulation:
   n_components: [1,5]
   n_classes_in_subsets: 3

@@ -16,6 +16,7 @@ def generate_json_report(
     out.update({'Notes':report_config.notes})
     out.update({'Train':report_config.train_metric_table})
     out.update({'Test':report_config.test_metric_table})
+    out.update({'OOD Test':report_config.ood_test_metric_table})
     out.update({'Model':
         {
             'Name':report_config.model_config.model_name,
