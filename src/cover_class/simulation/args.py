@@ -19,6 +19,8 @@ class SimulationArgs(Struct):
     white_noise: float
     noise_covariance: Optional[FloatTensor]
     return_fractions: bool
+    glint_scalar_range: Tuple[Optional[float], Optional[float]]
+    water_classes: List[int]
 
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
@@ -56,6 +58,8 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         white_noise = sim_config['white_noise'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
         return_fractions=sim_config["return_fractions"],
+        glint_scalar_range=(sim_config["glint_lower_scalar"], sim_config["glint_upper_scalar"]),
+        water_classes=[i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],
     )
 
     d = DataArgs(
