@@ -66,5 +66,5 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
 
 @dataclass
 class ForceFracRange:
-    low: int
-    high: int
+    low: float
+    high: float

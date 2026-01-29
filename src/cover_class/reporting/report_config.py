@@ -41,8 +41,8 @@ class ModelConfig:
 
 @dataclass
 class FractionalSimulationResult:
-    range_low: int
-    range_high: int
+    range_low: float
+    range_high: float
     class_id: int
     y_hat: Tensor
     y: Tensor

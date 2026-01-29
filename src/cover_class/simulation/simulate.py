@@ -35,7 +35,7 @@ def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[Fo
     old  = dirich_fractions[rows, fidx]
     new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
 
-    # 5. return the newly adjusted fractions
+    # 3. return the newly adjusted fractions
     other = 1 - old
     ok = other > 0
     dirich_fractions[~ok] = 0.0
