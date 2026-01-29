@@ -55,7 +55,8 @@ def _metrics_table(contents: List, styles: Dict, metrics: Dict, title: str) -> N
             metric_tables.append(make_table([[str(k), "Value"]] + [[str(i), str(j)] for i, j in v.items()]))
         else:
             data.append([str(k), str(v)])
-    metric_tables.append(make_table(data))
+    if len(data) >1:
+        metric_tables.append(make_table(data))
 
     # chunk into rows of 4
     rows = [metric_tables[i:i+4] for i in range(0, len(metric_tables), 4)]
@@ -155,13 +156,19 @@ def add_section(
         plots: List[Any], 
         figures: List[Figure], 
         report_styles: StyleSheet1, 
-        title: str
+        title: str,
+        fractional_simulation_test_dict: Optional[dict],
     ) -> int:
 
     contents.append(Paragraph(f"{title} Report", report_styles["Heading1"]))
     contents.append(Spacer(1, 0.1 * inch))
     if metric_table:
         _metrics_table(contents, report_styles, metric_table, f"{title} Metrics")
+        contents.append(Spacer(1, 0.1 * inch))
+    if fractional_simulation_test_dict is not None:
+        _metrics_table(contents, report_styles, fractional_simulation_test_dict['TPR'], "Fractional Simulation TPR")
+        contents.append(Spacer(1, 0.1 * inch))
+        _metrics_table(contents, report_styles, fractional_simulation_test_dict['FPR'], "Fractional Simulation FPR")
         contents.append(Spacer(1, 0.1 * inch))
     contents.append(Paragraph(f"{title} Plots", report_styles["Heading2"]))
     contents.append(Spacer(1, 0.1 * inch))
@@ -247,16 +254,17 @@ def generate_pdf_report(
 
 
     ############### Training report: ##############
-    fn = add_section(0, contents, report_config.train_metric_table, report_config.train_plots, report_config.train_figures, report_styles, "Train")
+    fn = add_section(0, contents, report_config.train_metric_table, report_config.train_plots, report_config.train_figures, report_styles, "Train", None)
     ###############################################
 
 
     ############### Testing report: ###############
-    fn = add_section(fn, contents, report_config.test_metric_table, report_config.test_plots, report_config.test_figures, report_styles, "Test")
+    d = report_config._fractional_simulation_test_dict if report_config.fractional_simulation_test_results else None
+    fn = add_section(fn, contents, report_config.test_metric_table, report_config.test_plots, report_config.test_figures, report_styles, "Test", d)
     ###############################################
 
     ############### OOD Testing report: ###############
-    fn = add_section(fn, contents, report_config.ood_test_metric_table, report_config.ood_test_plots, report_config.ood_test_figures, report_styles, "OOD Test")
+    fn = add_section(fn, contents, report_config.ood_test_metric_table, report_config.ood_test_plots, report_config.ood_test_figures, report_styles, "OOD Test", None)
     ###############################################
 
 
