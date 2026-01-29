@@ -22,6 +22,25 @@ from cover_class.simulation.args import SimulationArgs, DataArgs, ForceFracRange
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
 
+def appy_water_scalar(data_args: DataArgs, glint_scalar_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
+    labels = data_args.real_labels
+    spectra = data_args.real_spectra
+
+    lo, hi = glint_scalar_range
+    if lo is None or hi is None or len(water_classes) == 0: 
+        return spectra
+    lo, hi = (hi, lo) if hi < lo else (lo, hi)
+
+    m = labels[..., None].eq(torch.as_tensor(water_classes, device=labels.device, dtype=labels.dtype)).any(-1)
+    if not m.any(): 
+        return spectra
+    
+    s = lo + (hi - lo) * torch.rand(spectra.size(0), device=spectra.device, dtype=spectra.dtype)
+    X = spectra.clone()
+    X[m] += s[m].unsqueeze(-1)
+    return FloatTensor(X)
+
+
 def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
     if force_frac_range is None or force_class is None:
         return dirich_fractions
@@ -66,6 +85,8 @@ def run_simulation(
     sim_args.to(device)
     data_args.to(device)
 
+    real_spectra = appy_water_scalar(data_args, sim_args.glint_scalar_range, sim_args.water_classes)
+
     with torch.no_grad():
         classes, cumsum_n_components = _0_init_simulation_state(sim_args, device, force_class)
 
@@ -101,7 +122,7 @@ def run_simulation(
         )
 
         resulting_real_spectra = _5_make_sim_spectra(
-            data_args.real_spectra,
+            real_spectra,
             selected_idxs, 
             spectra_mask, 
             dirich_fractions
@@ -111,7 +132,7 @@ def run_simulation(
         resulting_real_spectra += _6_add_noise(
             sim_args.noise_covariance,
             sim_args.n_iters,
-            data_args.real_spectra.shape[1], 
+            real_spectra.shape[1], 
             sim_args.white_noise,
             device
         )
