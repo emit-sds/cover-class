@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 from cover_class.train import setup_training_from_config, make_simulation_test_set, make_run_name #type: ignore
 from cover_class.static.retrieval import generate_hdf5_from_config #type: ignore
 from cover_class.utils import seed as sseed #type: ignore
+from cover_class.utils import ood_test_set_from_config # type: ignore
 from cover_class.reporting import ModelConfig, Report #type: ignore
+from cover_class.simulation.force_fractions import ForcedFractionSimulation #type: ignore
 
 ENV_VAR_PREFIX = 'COVER_CLASS_TRAIN_'
 
@@ -111,6 +113,11 @@ def run_pipeline_classifier(
     sseed(seed)
     simulation_x_test, simulation_y_test, _ = make_simulation_test_set(dataloader, test_X, test_Y, simulated_test_set_size)
 
+    ## create the OOD test set
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(config)
+    ood_test_set_x = torch.rand((len(ood_test_set_y), simulation_x_test.shape[1])) # NOTE: This is only to force an example
+    assert ood_test_set_x.shape[-1] == simulation_x_test.shape[-1], "Mismatched test set shapes"
+
     class MultiLabelClassifier(nn.Module):
         def __init__(self, input_dim, num_classes):
             super().__init__()
@@ -162,6 +169,7 @@ def run_pipeline_classifier(
             },
         ),
         Y_test=simulation_y_test,
+        Y_ood_test=ood_test_set_y,
         random_seed=seed,
         run_name=run_name,
     )
@@ -183,7 +191,7 @@ def run_pipeline_classifier(
         losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
         
         if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
-            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}")
+            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses['Welford arithmetic mean']:.4f}")
     
     ## Save model
     torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
@@ -197,12 +205,23 @@ def run_pipeline_classifier(
     ax.set_ylabel("BCE nats")
     report.train_figures.append(fig)
 
+    ## Generate fractional simulation data for each class to test model performance on
+    fraction_ranges = [(0.01, 0.05), (0.05, 0.10), (0.10, 0.15), (0.15, 0.25), (0.25, 0.50)]
+    simulated_test_set_size = 100
+    fs = ForcedFractionSimulation(dataloader, test_X, test_Y, simulated_test_set_size, fraction_ranges)
+    for frac_sim_data, _ in fs:
+        with torch.no_grad():
+            frac_sim_y_hat = torch.sigmoid(model(frac_sim_data))
+        report.append_fractional_simulation_result(fs, frac_sim_y_hat)
+
     ## Finally, generate the report
     with torch.no_grad():
-        y_hat = torch.sigmoid(model(simulation_x_test.to(device)))
+        y_hat = torch.sigmoid(model(simulation_x_test).to(device))
         y_hat = y_hat.detach().cpu()
+        y_hat_ood = torch.sigmoid(model(ood_test_set_x).to(device))
+        y_hat_ood = y_hat_ood.detach().cpu()
     thresholds = [0.5] * y_hat.shape[-1]
-    report.make_report(y_hat, thresholds)
+    report.make_report(y_hat, thresholds, y_hat_ood)
 
 
 if __name__ == "__main__": 

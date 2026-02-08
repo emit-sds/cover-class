@@ -13,6 +13,7 @@ datasets:
   ash+char:
   snow+ice:
   water:
+ood-test-set: /some/path.hdf5
 simulation:
   n_components: [1,5]
   n_classes_in_subsets: 3
@@ -23,9 +24,16 @@ simulation:
   white_noise: 0.0001
   noise_covariance_csv: static/spectral_noise_covariances.csv
   return_fractions: false
+  glint_upper_scalar:
+  glint_lower_scalar:
 subsample:
   test-fraction: 0.2
   selected-method: convex-hull
+  file-specific:
+    /some/path.hdf5:
+      kmedoids:
+        num_pc: 5
+        n_samples: 200
   convex-hull:
     num_pc: 1
     n_samples: 10
@@ -53,6 +61,8 @@ subsample:
     n_samples: 10
     hypercubes_per_dimension: 3
     samples_per_hypercube: 3
+  random:
+    n_samples: 10
 dataloader:
   percent-static-data: 0.5
 test-scene-urls:

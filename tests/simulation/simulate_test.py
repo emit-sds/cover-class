@@ -4,7 +4,8 @@ import torch
 from torch import Tensor
 
 from cover_class.simulation import simulate # type: ignore[import]
-from cover_class.simulation import SimulationArgs, DataArgs
+from cover_class.simulation import SimulationArgs, DataArgs, ForceFracRange
+from cover_class.simulation.simulate import force_fractions, _0_init_simulation_state # type: ignore[import]
 
 RANDOM_SEED = 42
 
@@ -94,7 +95,7 @@ class simulationTest(unittest.TestCase):
             classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args, None)
             expected_size = (sim_args.n_iters, int(cumsum_n_components.max().item()))
 
-            def mock_init_simulation_state(_: SimulationArgs, __):
+            def mock_init_simulation_state(_: SimulationArgs, __, ___):
                 return classes, cumsum_n_components
             
             def mock_alpha(size, c, a, al, au):
@@ -143,7 +144,7 @@ class simulationTest(unittest.TestCase):
             classes, cumsum_n_components = simulate._0_init_simulation_state(sim_args, None)
             m = int(cumsum_n_components.max().item())
 
-            def mock_init_simulation_state(_: SimulationArgs, __):
+            def mock_init_simulation_state(_: SimulationArgs, __, ___):
                 return classes, cumsum_n_components
 
             def mock_dirichlet(alpha, min_frac):
@@ -234,7 +235,7 @@ class simulationTest(unittest.TestCase):
             classes = torch.tensor([[1, 2]], dtype=torch.int8)
             cumsum_n_components = torch.tensor([[1, 3]], dtype=torch.int32)
 
-            def mock_init_sim_state(_: SimulationArgs, __):
+            def mock_init_sim_state(_: SimulationArgs, __, ___):
                 return classes, cumsum_n_components
             
             captured = {"filtered_n_components_per_class": None, "classes": None, "labels": None, "n_classes": None,
@@ -377,7 +378,68 @@ class simulationTest(unittest.TestCase):
 
         torch.testing.assert_close(out, expected, rtol=0, atol=1e-7)
 
+
+    def test_force_fractions(self):
+        torch.manual_seed(0)
+
+        n_iters = 32
+        n_sub   = 4
+        max_comp = 16
+        force_class = 7
+
+        force_frac_range = ForceFracRange(0.70, 0.90)
+
+        classes = torch.randint(0, 20, (n_iters, n_sub), dtype=torch.int8)
+        classes[(classes==force_class)] = force_class+1
+        classes[:, 0] = force_class
+
+        n_components = torch.ones((n_iters, n_sub), dtype=torch.long)
+        cumsum = torch.nn.functional.pad(n_components.cumsum(dim=1), (1, 0), value=0)  # (n_iters, n_sub+1)
+
+        # dirich_fractions: per row, put mass only in the first n_sub entries, rest zero, normalized
+        dirich = torch.rand((n_iters, max_comp), dtype=torch.float32)
+        dirich[:, n_sub:] = 0.0
+        dirich = dirich / dirich.sum(dim=1, keepdim=True)
+
+        out = force_fractions(dirich, force_frac_range, force_class, classes, cumsum)
+
+        self.assertTrue(torch.allclose(out.sum(dim=1), torch.ones(n_iters), atol=1e-5))
+
+        rows = torch.arange(n_iters)
+        fcol = (classes == force_class).long().argmax(1)
+        fidx = cumsum.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1
+        fvals = out[rows, fidx]
+
+        self.assertTrue(bool((fvals >= force_frac_range.low - 1e-6).all()))
+        self.assertTrue(bool((fvals <= force_frac_range.high + 1e-6).all()))
+        self.assertTrue(bool((out >= -1e-7).all()))
+
+
+    def test_0_init_simulation_state_force_class(self):
+        torch.manual_seed(0)
+
+        class SimArgs:
+            def __init__(self):
+                self.n_iters = 64
+                self.n_classes_in_subsets = 6
+                self.n_classes = 50
+                self.n_components = [0, 1, 2, 3, 4]
+
+        sim_args = SimArgs()
+        device = torch.device("cpu")
+        force_class = 7
+
+        classes, cumsum = _0_init_simulation_state(sim_args, device, force_class)
+
+        # force_class appears exactly once per row in classes
+        counts = (classes == force_class).sum(dim=1)
+        self.assertTrue(bool((counts == 1).all()))
+
+        # force_class has a value of 1 for cumsum_n_components
+        n_components = cumsum[:, 1:] - cumsum[:, :-1]
+
+        self.assertTrue(bool((n_components[classes == force_class] == 1).all()))
+
+
 if __name__ == "__main__":
-    # unittest.main()
-    s = simulationTest()
-    s.test_get_fractions_by_class()
+    unittest.main()

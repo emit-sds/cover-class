@@ -15,7 +15,8 @@ def generate_json_report(
     out.update({'Seed':report_config.random_seed})
     out.update({'Notes':report_config.notes})
     out.update({'Train':report_config.train_metric_table})
-    out.update({'Test':report_config.test_metric_table})
+    out.update({'Test':{'metrics':report_config.test_metric_table, 'fractional simulation':report_config._fractional_simulation_test_dict}})
+    out.update({'OOD Test':report_config.ood_test_metric_table})
     out.update({'Model':
         {
             'Name':report_config.model_config.model_name,

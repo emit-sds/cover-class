@@ -58,7 +58,6 @@ Takes in:
 
 > [!IMPORTANT]
 > This report relies on setting up a `.netrc` file in the `cover-class/src/cover_class/reporting/assets/.netrc` file path. There's no real good way to avoid it. When a `Report` object is instantiated, the control logic will try to download the qualitative assessment files, so there will be an early error if this is not possible. The file download only occurs whenever there aren't the detected files in `cover-class/src/cover_class/reporting/qualitative`.
->
 > Steps:
 > 1. Set up an account at [https://urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov)
 > 2. Copy your username and password to replace `example@email.com` and `mySuperSecurePassword123` in `cover-class/src/cover_class/reporting/assets/.netrc`.
@@ -116,4 +115,31 @@ with torch.no_grad():
     y_hat = torch.sigmoid(model(test_data))
     thresholds = ...
 report.make_report(y_hat, thresholds)
+```
+
+
+### Inference Over a Scene From Earth Data Archive
+
+> [!IMPORTANT]
+> This report relies on setting up a `.netrc` file in the `cover-class/src/cover_class/reporting/assets/.netrc` file path. There's no real good way to avoid it. When a `Report` object is instantiated, the control logic will try to download the qualitative assessment files, so there will be an early error if this is not possible. The file download only occurs whenever there aren't the detected files in `cover-class/src/cover_class/reporting/qualitative`.
+> Steps:
+> 1. Set up an account at [https://urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov)
+> 2. Copy your username and password to replace `example@email.com` and `mySuperSecurePassword123` in `cover-class/src/cover_class/reporting/assets/.netrc`.
+
+```
+from cover_class.utils import read_config
+from cover_class.reporting import download_scenes, inference_over_scene
+
+fid = "EMIT_L2A_RFL_001_20250404T194611_2509413_006"
+scene = f"https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/{fid}/{fid}.nc"
+
+# NOTE: all scenes will be output to `src/cover_class/reporting/qualitative`
+download_scenes([scene])
+
+config = read_config('/Users/makiper/Desktop/emit/cover-class/config/dataloader copy.yml')
+output = inference_over_scene(
+    f"src/cover_class/reporting/qualitative/{fid}.nc",
+    model,
+    config['drop-bands-wavelengths'],
+)
 ```

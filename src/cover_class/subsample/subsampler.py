@@ -90,6 +90,11 @@ def lhs(data_matrix: NDArray[np.float32], num_pc:int, hypercubes_per_dimension:i
     return FloatTensor(torch.from_numpy(subsampled_data).to(torch.float32)) 
 
 
+def random(data_matrix: NDArray[np.float32], n_samples:int) -> FloatTensor:
+    rs = data_matrix[np.random.randint(0, len(data_matrix), (n_samples,))]
+    return FloatTensor(torch.from_numpy(rs).to(dtype=torch.float32))
+
+
 def pca(X: np.ndarray, num_pc: int = 6) -> Tuple[np.ndarray, np.ndarray]:
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z = pca.fit_transform(X)
