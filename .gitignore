@@ -12,3 +12,5 @@ dist
 # python 
 __pycache__/
 
+*/wandb/
+*/out/
