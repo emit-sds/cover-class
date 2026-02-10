@@ -7,19 +7,19 @@ drop-bands-wavelengths: # needs to be a list of tuples
   - [2440, 2880]
 datasets:
   soil:
-    - /scratch/cmml/emit-frac/20251214/soil_soil.hdf5
-    - /scratch/cmml/emit-frac/20251214/rock_rock.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/soil_kmeans_subsampled_soil_soil.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/soil_random_subsampled_rock_rock.hdf5
   pv:
-    - /scratch/cmml/emit-frac/20251214/pv_pv.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/pv_kmeans_subsampled_pv_pv.hdf5
   npv:
-    - /scratch/cmml/emit-frac/20251214/npv_npv.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/npv_kmeans_subsampled_npv_npv.hdf5
   snow+ice:
-    - /scratch/cmml/emit-frac/20251214/snow-ice_snow-ice.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/snow+ice_kmeans_subsampled_snow-ice_snow-ice.hdf5
   water:
-    - /scratch/cmml/emit-frac/20251214/water_water.hdf5
+    - /scratch/cmml/emit-frac/datasets/20260129_ym/water_kmeans_subsampled_water_water.hdf5
 ood-test-set: /scratch/cmml/emit-frac/datasets/20260129_ym/validation.h5
 simulation:
-  n_components: [1,5]
+  n_components: [1]
   n_classes_in_subsets: 3
   alpha: 0.3
   min_frac: 0.1
@@ -28,9 +28,11 @@ simulation:
   white_noise: 0.0001
   noise_covariance_csv: /scratch/cmml/emit-frac/spectral_covariances_no_header_v2.csv
   return_fractions: true
+  glint_upper_scalar: 0.15
+  glint_lower_scalar: 0.0
 subsample:
   test-fraction: 0.2
-  selected-method: kmeans
+  selected-method:
   file-specific:
     /scratch/cmml/emit-frac/20251214/rock_rock.hdf5:
       random:

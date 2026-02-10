@@ -10,7 +10,7 @@ model:
   dim_proj: 128
   dim_ff: 256
   dropout: 0.05
-  agg: "max"
+  agg: "mean"
   use_residual: false
   num_layers: 1
 

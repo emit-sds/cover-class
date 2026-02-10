@@ -1,11 +1,14 @@
 import os
-from typing import Optional
+
+# Set CUBLAS_WORKSPACE_CONFIG for deterministic CUDA behavior
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 import getpass
 from datetime import datetime
-import matplotlib.pyplot as plt
 import rich_click as click
 import yaml
 import wandb
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
@@ -97,14 +100,14 @@ def run_pipeline_classifier(
 
     # Validation set dataloader for OOD evaluation
     ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config)
-    val_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
-    val_dataloader = DataLoader(val_dataset, batch_size=m_config['batch_size'], shuffle=False)
+    ood_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
+    ood_dataloader = DataLoader(ood_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # hardcoded GPU 0
     device = get_device(0)
 
     # model definition
-    model = SpecTfEncoder(torch.tensor(banddef, dtype=torch.float32).to(device),
+    model = SpecTfEncoder(banddef.to(dtype=torch.float32, device=device),
                          dim_output=m_config['model']['dim_output'],
                          num_heads=m_config['model']['num_heads'],
                          dim_proj=m_config['model']['dim_proj'],
@@ -131,8 +134,6 @@ def run_pipeline_classifier(
         settings=wandb.Settings(_service_wait=300)
     )
 
-    threshold = 0.5
-    accumulator = 0
     report = Report(
         outdir=outdir,
         config=data_config,
@@ -153,58 +154,110 @@ def run_pipeline_classifier(
         run_name=timestamp
     )
 
-    # Training loop
-    model.train()
-    optimizer.train()
-    for batch_X, batch_Y in dataloader:
-        batch_X = batch_X.to(device=device, dtype=torch.float32)
-        batch_X = torch.unsqueeze(batch_X, -1)
-        batch_Y = batch_Y.to(device)
-
-        accumulator += 1
-        if accumulator == m_config['training']['total_steps']:
-            break
-
-        optimizer.zero_grad()
-        logits = model(batch_X)
-        loss = criterion(logits, batch_Y)
-        loss.backward()
-        optimizer.step()
-
-        nats = loss.cpu().item()
-
-        run.log({"loss_train": nats})
-
-    ## Save model
-    torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
-
+    # Epoch-based training loop
+    total_epochs = m_config['training']['total_epochs']
+    steps_per_epoch = m_config['training']['steps_per_epoch']
     bs = m_config['batch_size']
 
-    # Test loop
-    model.eval()
-    optimizer.eval()
-    y_hat = np.zeros_like(simulation_y_test)
-    for i, (batch_X, batch_Y) in enumerate(test_dataloader):
-        batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
-        batch_X = torch.unsqueeze(batch_X, -1)
-        with torch.no_grad():
-            batch_y_hat = model(batch_X)
-            batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
-            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(int)
-            y_hat[i*bs:(i+1)*bs] = batch_y_hat
+    ds = report.config['datasets'] # type: ignore
+    class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
 
-    # Validation loop
-    y_hat_ood = np.zeros_like(ood_test_set_y)
-    for i, (batch_X, batch_Y) in enumerate(val_dataloader):
-        batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
-        batch_X = torch.unsqueeze(batch_X, -1)
-        with torch.no_grad():
-            batch_y_hat = model(batch_X)
-            batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
-            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(int)
-            y_hat_ood[i*bs:(i+1)*bs] = batch_y_hat
+    for epoch in range(total_epochs):
+        model.train()
+        optimizer.train()
+        epoch_loss = 0.0
+        step = 0
+        for batch_X, batch_Y in dataloader:
+            batch_X = batch_X.to(device=device, dtype=torch.float32)
+            batch_X = torch.unsqueeze(batch_X, -1)
+            batch_Y = batch_Y.to(device=device, dtype=torch.float32)
 
-    thresholds = [0.5] * y_hat.shape[-1]
+            optimizer.zero_grad()
+            logits = model(batch_X)
+            loss = criterion(logits, batch_Y)
+            loss.backward()
+            optimizer.step()
+
+            nats = loss.cpu().item()
+            epoch_loss += nats
+            run.log({"loss_train": nats, "step": step + epoch * steps_per_epoch})
+
+            step += 1
+            if step >= steps_per_epoch:
+                break
+
+        avg_epoch_loss = epoch_loss / steps_per_epoch
+        run.log({"loss_train_epoch": avg_epoch_loss, "epoch": epoch})
+
+        # Save model at each epoch
+        if epoch + 1 % 10 == 0:
+            torch.save(model.state_dict(), os.path.join(outdir, f'model_epoch{epoch+1}.pth'))
+
+        # Test loop
+        model.eval()
+        optimizer.eval()
+        y_hat = np.zeros_like(simulation_y_test, dtype=float)
+        test_loss_sum = 0.0
+        test_batches = 0
+        for i, (batch_X, batch_Y) in enumerate(test_dataloader):
+            batch_X = batch_X.to(device=device, dtype=torch.float32)
+            batch_X = torch.unsqueeze(batch_X, -1)
+            batch_Y = batch_Y.to(device=device, dtype=torch.float32)
+            with torch.no_grad():
+                logits = model(batch_X)
+                batch_loss = criterion(logits, batch_Y)
+                test_loss_sum += batch_loss.cpu().item()
+                test_batches += 1
+                batch_y_hat = torch.sigmoid(logits)
+                batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
+                batch_len = len(batch_y_hat)
+                y_hat[i*bs:i*bs+batch_len] = batch_y_hat
+        avg_test_loss = test_loss_sum / test_batches if test_batches > 0 else float('nan')
+
+        # OOD loop
+        y_hat_ood = np.zeros_like(ood_test_set_y, dtype=float)
+        ood_loss_sum = 0.0
+        ood_batches = 0
+        for i, (batch_X, batch_Y) in enumerate(ood_dataloader):
+            batch_X = batch_X.to(device=device, dtype=torch.float32)
+            batch_X = torch.unsqueeze(batch_X, -1)
+            batch_Y = batch_Y.to(device=device, dtype=torch.float32)
+            with torch.no_grad():
+                logits = model(batch_X)
+                batch_loss = criterion(logits, batch_Y)
+                ood_loss_sum += batch_loss.cpu().item()
+                ood_batches += 1
+                batch_y_hat = torch.sigmoid(logits)
+                batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
+                batch_len = len(batch_y_hat)
+                y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
+
+        avg_ood_loss = ood_loss_sum / ood_batches if ood_batches > 0 else float('nan')
+
+
+        # Metrics
+        thresholds = np.full(y_hat.shape[-1], 0.5)
+        # Handling to close figures
+        _figs = []
+        test_metrics = report.generate_metrics(simulation_y_test, y_hat, thresholds, _figs, class_names)
+        for f in _figs: plt.close(f)
+        del _figs
+
+        thresholds = np.full(y_hat.shape[-1], 0.5)
+        _figs = []
+        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, thresholds, _figs, class_names)
+        for f in _figs: plt.close(f)
+        del _figs
+
+        run.log({
+            "test_metrics": test_metrics,
+            "ood_metrics": ood_metrics,
+            "epoch": epoch,
+            "loss_test_epoch": avg_test_loss,
+            "loss_ood_epoch": avg_ood_loss
+        })
+
+    # Generate report at end of training
     report.make_report(y_hat, thresholds, y_hat_ood)
 
 if __name__ == "__main__": 

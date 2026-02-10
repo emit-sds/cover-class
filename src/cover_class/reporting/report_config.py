@@ -3,6 +3,7 @@ from matplotlib.figure import Figure
 from dataclasses import dataclass, field
 from datetime import datetime
 from numpy.typing import NDArray
+import torch
 from torch import Tensor
 import getpass
 import os
@@ -137,12 +138,12 @@ class Report:
         generate_pdf_report(self, pdf_path)
         generate_json_report(self, json_path)
 
-    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Tensor, class_thresholds: List[float], figure_list: List[Figure], class_names: List[str]) -> dict:
+    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: List[float], figure_list: List[Figure], class_names: List[str]) -> dict:
         assert len(class_thresholds) == y_hat.shape[-1], f"Got {len(class_thresholds)} thresholds for {y_hat.shape[-1]} classes"
 
-        y_hat_binary = (y_hat >= torch.tensor(class_thresholds, device=y_hat.device, dtype=y_hat.dtype)).to(torch.long)
-        y_hat_binary = make_numpy(y_hat_binary) # type: ignore
-        y_hat = make_numpy(y_hat) # type: ignore
+        y = make_numpy(y)
+        y_hat = make_numpy(y_hat)
+        y_hat_binary = (y_hat >= np.array(class_thresholds)).astype(int)
 
         lcn = len(class_names)
         
@@ -155,7 +156,8 @@ class Report:
         f1_scores          = f_beta_scores(y_hat_binary, y, class_names)
         roc_plot, roc_dict = roc_auc(y_hat, y, class_names)
         # zip together the metric dicts
-        metrics: Dict = {class_names[i]:{'Threshold': class_thresholds[i]} for i in range(lcn)}
+        #metrics: Dict = {class_names[i]:{'Threshold': class_thresholds[i]} for i in range(lcn)}
+        metrics: Dict = {class_names[i]:{} for i in range(lcn)}
         for m in [rates, f1_scores, roc_dict]:
             for k, v in m.items():
                 metrics[k].update(v)
