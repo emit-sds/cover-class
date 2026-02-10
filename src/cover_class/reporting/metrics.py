@@ -192,3 +192,34 @@ def brier_score(): ...
 def pr_auc_curve(): ...
 def expected_calibration_error(): ...
 def adaptive_calibration_error(): ...
+
+def f1_opt_thr(
+        y_hat: Union[Tensor, NDArray],
+        y: Union[Tensor, NDArray],
+        class_names: List[str],
+        beta: float = 1.0,
+        n_steps: int = 101,
+    ) -> List[float]:
+    """
+    Finds the threshold for each class that maximizes the F1 score.
+    Returns a list of optimal thresholds, one per class.
+    """
+    y_hat = make_numpy(y_hat)
+    y = make_numpy(y)
+    n_classes = y.shape[1]
+    thresholds = np.linspace(0, 1, n_steps)
+    opt_thr = []
+    for c in range(n_classes):
+        best_thr = 0.5
+        best_f1 = -1
+        for thr in thresholds:
+            y_hat_bin = np.zeros_like(y_hat)
+            y_hat_bin[:, c] = (y_hat[:, c] >= thr).astype(int)
+            # Only update the c-th column, others remain zero
+            scores = f_beta_scores(y_hat_bin, y, class_names, beta=beta)
+            f1 = scores[class_names[c]][f"F-{beta} Score"]
+            if f1 > best_f1:
+                best_f1 = f1
+                best_thr = thr
+        opt_thr.append(float(best_thr))
+    return opt_thr

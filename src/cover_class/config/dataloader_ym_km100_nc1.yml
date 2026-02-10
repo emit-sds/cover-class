@@ -33,10 +33,6 @@ simulation:
 subsample:
   test-fraction: 0.2
   selected-method:
-  file-specific:
-    /scratch/cmml/emit-frac/20251214/rock_rock.hdf5:
-      random:
-        n_samples: 30
   convex-hull:
     num_pc: 4
     n_samples: 100

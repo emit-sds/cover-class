@@ -236,16 +236,13 @@ def run_pipeline_classifier(
 
 
         # Metrics
-        thresholds = np.full(y_hat.shape[-1], 0.5)
-        # Handling to close figures
         _figs = []
-        test_metrics = report.generate_metrics(simulation_y_test, y_hat, thresholds, _figs, class_names)
+        test_metrics = report.generate_metrics(simulation_y_test, y_hat, None, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
-        thresholds = np.full(y_hat.shape[-1], 0.5)
         _figs = []
-        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, thresholds, _figs, class_names)
+        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, None, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
@@ -258,7 +255,7 @@ def run_pipeline_classifier(
         })
 
     # Generate report at end of training
-    report.make_report(y_hat, thresholds, y_hat_ood)
+    report.make_report(y_hat, None, y_hat_ood)
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
