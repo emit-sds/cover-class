@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, DataLoader
 import schedulefree
 
 from cover_class.train import setup_training_from_config, make_simulation_test_set, banddef_from_config #type: ignore
-from cover_class.utils import seed as sseed #type: ignore
+from cover_class.utils import seed as sseed, ood_test_set_from_config #type: ignore
 from cover_class.reporting import ModelConfig, Report #type: ignore
 
 from spectf.model import SpecTfEncoder
@@ -59,14 +59,6 @@ class TestDataset(Dataset):
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(
-    "--log-interval",
-    required=False,
-    type=int,
-    default=None,
-    help="Number of steps between logging",
-    envvar=f'{ENV_VAR_PREFIX}_LOG_INTERVAL'
-)
-@click.option(
     "--simulated-test-set-size",
     required=False,
     type=int,
@@ -78,19 +70,19 @@ def run_pipeline_classifier(
         outdir: str,
         data_config: str,
         model_config: str,
-        log_interval: Optional[int] = None,
         simulated_test_set_size: int = 100_000
     ):
 
     with open(model_config, 'r', encoding='utf-8') as f:
         m_config = yaml.safe_load(f)
-    
+
     dataloader, test_X, test_Y = setup_training_from_config(
         data_config,
         m_config['batch_size'],
         shuffle=True,
         seed=m_config['random_seed'],
-        subsampled_files_outdir=outdir)
+        subsampled_files_outdir=outdir,
+        misc_dataloader_params={'num_workers': m_config['training']['num_workers']})
 
     banddef = banddef_from_config(data_config)
     print("DEBUG", banddef.shape)
@@ -102,6 +94,11 @@ def run_pipeline_classifier(
     # Test set dataloader
     test_dataset = TestDataset(simulation_x_test, simulation_y_test)
     test_dataloader = DataLoader(test_dataset, batch_size=m_config['batch_size'], shuffle=False)
+
+    # Validation set dataloader for OOD evaluation
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config)
+    val_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
+    val_dataloader = DataLoader(val_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # hardcoded GPU 0
     device = get_device(0)
@@ -136,8 +133,7 @@ def run_pipeline_classifier(
 
     threshold = 0.5
     accumulator = 0
-    losses = {"Welford arithmetic mean": 0., "loss": []}
-    with Report(
+    report = Report(
         outdir=outdir,
         config=data_config,
         author=getpass.getuser(),
@@ -151,67 +147,65 @@ def run_pipeline_classifier(
                 "params": m_config['model']
             },
         ),
-        X_test=simulation_x_test,
         Y_test=simulation_y_test,
-        classification_threshold = threshold,
+        Y_ood_test=ood_test_set_y,
         random_seed=m_config['random_seed'],
-    ) as report:
-        
-        # Training loop
-        model.train()
-        optimizer.train()
-        for batch_X, batch_Y in dataloader:
-            batch_X = batch_X.to(device=device, dtype=torch.float32)
-            batch_X = torch.unsqueeze(batch_X, -1)
-            batch_Y = batch_Y.to(device)
+        run_name=timestamp
+    )
 
-            accumulator += 1
-            if accumulator == m_config['training']['total_steps']:
-                break
+    # Training loop
+    model.train()
+    optimizer.train()
+    for batch_X, batch_Y in dataloader:
+        batch_X = batch_X.to(device=device, dtype=torch.float32)
+        batch_X = torch.unsqueeze(batch_X, -1)
+        batch_Y = batch_Y.to(device)
 
-            optimizer.zero_grad()
-            logits = model(batch_X)
-            loss = criterion(logits, batch_Y)
-            loss.backward()
-            optimizer.step()
+        accumulator += 1
+        if accumulator == m_config['training']['total_steps']:
+            break
 
-            nats = loss.cpu().item()
+        optimizer.zero_grad()
+        logits = model(batch_X)
+        loss = criterion(logits, batch_Y)
+        loss.backward()
+        optimizer.step()
 
-            run.log({"loss_train": nats})
+        nats = loss.cpu().item()
 
-            losses["loss"].append(nats) #type: ignore
-            losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
-            
-            if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
-                print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses['Welford arithmetic mean']:.4f}")
+        run.log({"loss_train": nats})
 
-        ## Save model
-        torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
+    ## Save model
+    torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
 
-        ## generate a training loss plot in the report as well
-        fig, ax = plt.subplots()
-        ax.plot(losses["loss"]) # type: ignore
-        ax.set_title("Training Loss")
-        ax.set_xlabel("Step")
-        ax.set_ylabel("BCE nats")
-        report.train_figures.append(fig)
+    bs = m_config['batch_size']
 
-        bs = m_config['batch_size']
+    # Test loop
+    model.eval()
+    optimizer.eval()
+    y_hat = np.zeros_like(simulation_y_test)
+    for i, (batch_X, batch_Y) in enumerate(test_dataloader):
+        batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
+        batch_X = torch.unsqueeze(batch_X, -1)
+        with torch.no_grad():
+            batch_y_hat = model(batch_X)
+            batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
+            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(int)
+            y_hat[i*bs:(i+1)*bs] = batch_y_hat
 
-        # Test loop
-        model.eval()
-        optimizer.eval()
-        y_hat = np.zeros_like(simulation_y_test)
-        for i, (batch_X, batch_Y) in enumerate(test_dataloader):
-            batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
-            batch_X = torch.unsqueeze(batch_X, -1)
-            with torch.no_grad():
-                batch_y_hat = model(batch_X)
-                batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
-                batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(int)
-                y_hat[i*bs:(i+1)*bs] = batch_y_hat
+    # Validation loop
+    y_hat_ood = np.zeros_like(ood_test_set_y)
+    for i, (batch_X, batch_Y) in enumerate(val_dataloader):
+        batch_X = torch.tensor(batch_X, dtype=torch.float32).to(device)
+        batch_X = torch.unsqueeze(batch_X, -1)
+        with torch.no_grad():
+            batch_y_hat = model(batch_X)
+            batch_y_hat = torch.sigmoid(batch_y_hat) >= threshold
+            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(int)
+            y_hat_ood[i*bs:(i+1)*bs] = batch_y_hat
 
-        report.y_hat = y_hat
+    thresholds = [0.5] * y_hat.shape[-1]
+    report.make_report(y_hat, thresholds, y_hat_ood)
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
