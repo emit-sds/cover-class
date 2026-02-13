@@ -15,7 +15,10 @@ datasets:
   water:
 ood-test-set: /some/path.hdf5
 simulation:
-  n_components: [1,5]
+  n_components:
+    soil: [1,2,3]
+    pv: [1,2,3]
+    npv: [1,2,3,4,5]
   n_classes_in_subsets: 3
   alpha: 0.3
   min_frac: 0.1
