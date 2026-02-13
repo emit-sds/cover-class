@@ -49,7 +49,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         assert str(sim_config['noise_covariance_csv']).endswith('csv'), f"Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}"
         noise_cov = np.genfromtxt(sim_config['noise_covariance_csv'], delimiter=',', dtype=float)
 
-    n_components: List[List[int]] = [n for n in sim_config['n_components'] if bool(config['datasets'].get(n, None))]
+    n_components: List[List[int]] = [v for k, v in sim_config['n_components'].items() if bool(config['datasets'].get(k, None))]
 
     s = SimulationArgs(
         n_iters = batch_size,
