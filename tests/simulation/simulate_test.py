@@ -16,7 +16,7 @@ def new_SimulationArgs() -> SimulationArgs:
         n_iters = 100,
         n_classes_in_subsets = 5,
         n_classes = N_CLASSES,
-        n_components = list([range(10) for _ in range(N_CLASSES)]),
+        n_components = [list(range(10)) for _ in range(N_CLASSES)],
         min_frac = 0.,
         alpha = None,
         alpha_uniform_low = 0.,
