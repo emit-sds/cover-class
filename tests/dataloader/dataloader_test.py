@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from cover_class.dataloader import OrchestratorDataset, OrchestratorDatasetArgs # type: ignore[import]
-from cover_class.simulation import SimulationArgs, DataArgs
+from cover_class.simulation import SimulationArgs, DataArgs # type: ignore[import]
 
 RANDOM_SEED = 42
 
@@ -20,19 +20,23 @@ def make_odsa(bsz, percent, s, d, sd, sl) -> OrchestratorDatasetArgs:
     )
 
 def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
+    n_classes = 10
     return (
     SimulationArgs(
         n_iters = 100,
         n_classes_in_subsets = 5,
         n_classes = 10,
-        n_components = list(range(10)),
+        n_components = [list(range(10)) for _ in range(n_classes)],
         min_frac = 0.,
         alpha = None,
         alpha_uniform_low = 0.,
         alpha_uniform_high = 0.,
         white_noise = 0.,
+        noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
+        glint_scalar_range = [None, None],
+        water_classes=[],
     ),
     None)
     # DataArgs(torch.tensor([.1, .2, .3]), torch.tensor([.1, .2, .3])))

@@ -11,16 +11,21 @@ class SimulationArgs(Struct):
     n_iters: int
     n_classes: int
     n_classes_in_subsets: int
-    n_components: List[int] # per class
+    n_components: List[List[int]]
     min_frac: float
     alpha: Optional[float]
     alpha_uniform_low: float
     alpha_uniform_high: float
     white_noise: float
+    noise_scalar: Optional[float]
     noise_covariance: Optional[FloatTensor]
     return_fractions: bool
     glint_scalar_range: Tuple[Optional[float], Optional[float]]
     water_classes: List[int]
+
+    def __post_init__(self):
+        assert len(self.n_components) == self.n_classes, f"Number of classes, {self.n_classes}, must match the number of component sampling ranges, {len(self.n_components)}"
+        assert all(len(i) for i in self.n_components), "All classes must have a non-empty value for the `n_components` config"
 
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
@@ -46,16 +51,23 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         assert str(sim_config['noise_covariance_csv']).endswith('csv'), f"Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}"
         noise_cov = np.genfromtxt(sim_config['noise_covariance_csv'], delimiter=',', dtype=float)
 
+    n_components: List[List[int]] = [
+        sim_config['n_components'][dataset_name]
+        for dataset_name, enabled in config['datasets'].items()
+        if enabled and dataset_name in sim_config['n_components']
+    ]
+
     s = SimulationArgs(
         n_iters = batch_size,
         n_classes = n_classes,
         n_classes_in_subsets = sim_config['n_classes_in_subsets'],
         min_frac = sim_config['min_frac'],
-        n_components = sim_config['n_components'],
+        n_components = n_components,
         alpha = sim_config['alpha'],
         alpha_uniform_low = sim_config['alpha_uniform_low'],
         alpha_uniform_high = sim_config['alpha_uniform_high'],
         white_noise = sim_config['white_noise'],
+        noise_scalar = sim_config['noise_scalar'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
         return_fractions=sim_config["return_fractions"],
         glint_scalar_range=(sim_config["glint_lower_scalar"], sim_config["glint_upper_scalar"]),

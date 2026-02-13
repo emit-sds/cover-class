@@ -27,6 +27,10 @@ datasets:
 ```
 version: <version of the config [string]>
 tags:    <various tags to descibe the config [list[string]]>
+drop-bands-wavelengths: <ranges of bands to drop [list[integer]]>
+  - [400, 500]
+  - [1000, 1200]
+ood-test-set: <paths to OOD test HDF5 [string]>
 datasets:
   soil:     <paths to datasets [list[string]]>
   pv:       <paths to datasets [list[string]]>
@@ -35,14 +39,26 @@ datasets:
   snow+ice: <paths to datasets [list[string]]>
   water:    <paths to datasets [list[string]]>
 simulation:
-  n_components:         <possible numer of endmembers per class in the simulated spectra [list[integer]]>
+  n_components:
+    soil: [1,2,3]     <random choice for number of components per sample for class [list[integer]]>
+    pv:   [1,2,3]     <random choice for number of components per sample for class [list[integer]]>
+    npv:  [1,2,3,4,5] <random choice for number of components per sample for class [list[integer]]>
   n_classes_in_subsets: <number of classes in the simulated spectra [integer]>
-  alpha:                <alpha parameter for Dirichlet distribution [float]>
-  min-frac:             <minimum fraction of class presence to be included in simulation [float]>
-  noise-file:           <path to noise CSV file of covariances [string]>
+  min_frac:             <minimum fraction of class presence to be included in simulation [float]>
+  alpha_uniform_low:    <Dirichlet distribution alpha low value [float]>
+  alpha_uniform_high:   <Dirichlet distribution alpha high value [float]>
+  white_noise:          <white noise scalar [float]>
+  noise_scalar:         <optional scalar to apply to the CSV noise>
+  noise_covariance_csv: <path to the noise covariance csv file [string]>
+  return_fractions:     <return the dirichlet fractions from the simulation [boolean]>
+  glint_upper_scalar:   <upper bound for water class glint scalar [float]>
+  glint_lower_scalar:   <lower bound for water class glint scalar [float]>
 subsample:
   test-fraction:   <test data split fraction [float]>
   selected-method: <subsampling method to use [string]>
+  file-specific:
+    /some/path.hdf5:
+        kmedoids:
   convex-hull:
     ...
   kmeans:
@@ -51,6 +67,10 @@ subsample:
     ...
   lhs:
     ...
+dataloader:
+  percent-static-data: 0.5
+test-scene-urls:
+    - https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/some-fid
 ```
 
 All of the fields in each of the `subsample` methods in the `dataloader.yml` are the names of a parameter and the value of that parameter to be passed into the corresponding subsampling function
