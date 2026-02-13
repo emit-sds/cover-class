@@ -165,7 +165,7 @@ def _0_init_simulation_state(
         indices.to(dtype=torch.int8)
     )
 
-    classes_cpu = classes.to(dtype=torch.int64, device=device).numpy()
+    classes_cpu = classes.to(dtype=torch.int64).cpu().numpy()
     n_components_numpy: npt.NDArray[np.int32] = np.zeros(size, dtype=np.int32)
     for c in np.unique(classes_cpu):
         mask = (classes_cpu == c)

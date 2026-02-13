@@ -24,6 +24,7 @@ class SimulationArgs(Struct):
 
     def __post_init__(self):
         assert len(self.n_components) == self.n_classes, f"Number of classes, {self.n_classes}, must match the number of component sampling ranges, {len(self.n_components)}"
+        assert all(len(i) for i in self.n_components), "All classes must have a non-empty value for the `n_components` config"
 
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 

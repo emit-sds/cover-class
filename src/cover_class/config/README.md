@@ -46,9 +46,9 @@ simulation:
   n_classes_in_subsets: <number of classes in the simulated spectra [integer]>
   min_frac:             <minimum fraction of class presence to be included in simulation [float]>
   alpha_uniform_low:    <Dirichlet distribution alpha low value [float]>
-  alpha_uniform_high:   <Dirichlet distribution alpha low value [float]>
+  alpha_uniform_high:   <Dirichlet distribution alpha high value [float]>
   white_noise:          <white noise scalar [float]>
-  noise_covariance_csv: <path to the noise covaraince csv file [string]>
+  noise_covariance_csv: <path to the noise covariance csv file [string]>
   return_fractions:     <return the dirichlet fractions from the simulation [boolean]>
   glint_upper_scalar:   <upper bound for water class glint scalar [float]>
   glint_lower_scalar:   <lower bound for water class glint scalar [float]>
