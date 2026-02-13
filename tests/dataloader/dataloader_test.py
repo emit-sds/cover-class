@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from cover_class.dataloader import OrchestratorDataset, OrchestratorDatasetArgs # type: ignore[import]
-from cover_class.simulation import SimulationArgs, DataArgs
+from cover_class.simulation import SimulationArgs, DataArgs # type: ignore[import]
 
 RANDOM_SEED = 42
 
