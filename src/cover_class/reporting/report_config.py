@@ -106,26 +106,20 @@ class Report:
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
 
-        # Calculate the optimal F1 thresholds if not provided
+        # Calculate the optimal F1 thresholds only on the test set if not specified
         if class_thresholds is None:
-            test_thresholds = f1_opt_thr(y_hat, self.Y_test, class_names)
-            class_thresholds = test_thresholds
-            ood_thresholds = f1_opt_thr(y_hat_ood_test, self.Y_ood_test, class_names) if y_hat_ood_test is not None else None
-        else:
-            test_thresholds = class_thresholds
-            ood_thresholds = class_thresholds
+            class_thresholds = f1_opt_thr(y_hat, self.Y_test, class_names)
 
         if self.test_metric_table is None:
             self.test_metric_table = {}
         if self.ood_test_metric_table is None:
             self.ood_test_metric_table = {}
-        self.test_metric_table.update(self.generate_metrics(self.Y_test, y_hat, test_thresholds, self.test_figures, class_names))
+        self.test_metric_table.update(self.generate_metrics(self.Y_test, y_hat, class_thresholds, self.test_figures, class_names))
         if y_hat_ood_test is not None:
             assert self.Y_ood_test is not None, "Got probabilities for OOD Test set, but no labels were provided"
-            self.ood_test_metric_table.update(self.generate_metrics(self.Y_ood_test, y_hat_ood_test, ood_thresholds, self.ood_test_figures, class_names))
+            self.ood_test_metric_table.update(self.generate_metrics(self.Y_ood_test, y_hat_ood_test, class_thresholds, self.ood_test_figures, class_names))
 
         # Get the metrics for the fractional simulation results
-        # TODO: what is this? -Jake
         self._fractional_simulation_test_dict['TPR'] = {}
         self._fractional_simulation_test_dict['FPR'] = {}
         for i, thresh in enumerate(class_thresholds):
@@ -150,6 +144,7 @@ class Report:
         generate_json_report(self, json_path)
 
     def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: List[float], figure_list: List[Figure], class_names: List[str]) -> dict:
+        # Calculate the optimal F1 thresholds if not specified
         if class_thresholds is None:
             class_thresholds = f1_opt_thr(y_hat, y, class_names)
 

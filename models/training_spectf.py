@@ -235,14 +235,18 @@ def run_pipeline_classifier(
         avg_ood_loss = ood_loss_sum / ood_batches if ood_batches > 0 else float('nan')
 
 
-        # Metrics
+        # Calculate test set metrics using the best thresholds for the test set
         _figs = []
         test_metrics = report.generate_metrics(simulation_y_test, y_hat, None, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
+        # Extract the thresholds used for the test set 
+        test_thresholds = [test_metrics[class_name]['Threshold'] for class_name in class_names]
+
+        # Calculate OOD validation set metrics using the test set thresholds
         _figs = []
-        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, None, _figs, class_names)
+        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, test_thresholds, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
