@@ -33,6 +33,8 @@ def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
         white_noise = 0.,
         noise_covariance = None,
         return_fractions = False,
+        glint_scalar_range = [None, None],
+        water_classes=[],
     ),
     None)
     # DataArgs(torch.tensor([.1, .2, .3]), torch.tensor([.1, .2, .3])))

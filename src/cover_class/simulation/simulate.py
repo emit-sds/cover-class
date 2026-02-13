@@ -117,7 +117,7 @@ def run_simulation(
             classes,
             data_args.real_labels,
             sim_args.n_classes,
-            max(sim_args.n_components),
+            max([max(i) for i in sim_args.n_components]),
             simulation_space_size[1],
         )
 
@@ -165,7 +165,12 @@ def _0_init_simulation_state(
         indices.to(dtype=torch.int8)
     )
 
-    n_components_numpy: npt.NDArray[np.int32] = np.random.choice(sim_args.n_components, size, replace=True).astype(np.int32)
+    classes_cpu = classes.to(dtype=torch.int64, device=device).numpy()
+    n_components_numpy: npt.NDArray[np.int32] = np.empty(size, dtype=np.int32)
+    for c in np.unique(classes_cpu):
+        mask = (classes_cpu == c)
+        vals = np.asarray(sim_args.n_components[c], dtype=np.int32)
+        n_components_numpy[mask] = np.random.choice(vals, mask.sum(), replace=True)
     n_components = torch.from_numpy(n_components_numpy).to(dtype=torch.int64, device=device)
 
     if force_class is not None:
