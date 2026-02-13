@@ -22,6 +22,7 @@ def new_SimulationArgs() -> SimulationArgs:
         alpha_uniform_low = 0.,
         alpha_uniform_high = 0.,
         white_noise = 0.,
+        noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
         glint_scalar_range = [None, None],
@@ -221,6 +222,7 @@ class simulationTest(unittest.TestCase):
                 alpha_uniform_low=0.0,
                 alpha_uniform_high=0.0,
                 white_noise=0.0,
+                noise_scalar=None,
                 noise_covariance=None,
                 return_fractions=False,
                 glint_scalar_range = [None, None],
@@ -305,12 +307,12 @@ class simulationTest(unittest.TestCase):
 
         with self.subTest("test_function_works_as_expected"):
             n_components = 10
-            noise = simulate._6_add_noise(None, 1, n_components, 0., None)
+            noise = simulate._6_add_noise(None, 1, n_components, 1., 0., None)
             torch.testing.assert_close(noise, torch.zeros((1, n_components,)))
 
             N = 10
             cov = torch.eye(N)
-            noise = simulate._6_add_noise(cov, 1, n_components, 0.4, None)
+            noise = simulate._6_add_noise(cov, 1, n_components, 1., 0.4, None)
             self.assertEqual(noise.shape, (1, N))
 
         with self.subTest("test_function_receives_expected_input"):
@@ -328,6 +330,7 @@ class simulationTest(unittest.TestCase):
                 alpha_uniform_low=0.0,
                 alpha_uniform_high=0.0,
                 white_noise=123.45,
+                noise_scalar=None,
                 noise_covariance=cov,
                 return_fractions=False,
                 glint_scalar_range = [None, None],
@@ -337,7 +340,7 @@ class simulationTest(unittest.TestCase):
 
             obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim, obtained_n_iters = None, None, None, None
                                     
-            def mock_add_noise(sim_args_noise, n_iters, wavelength_dim, white_noise_scale, _):
+            def mock_add_noise(sim_args_noise, n_iters, wavelength_dim, noise_scalar, white_noise_scale, _):
                 nonlocal obtained_noise_cov, obtained_white_noise, obtained_wavelength_dim, obtained_n_iters
                 obtained_noise_cov = sim_args_noise
                 obtained_white_noise = white_noise_scale

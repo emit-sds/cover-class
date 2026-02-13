@@ -133,6 +133,7 @@ def run_simulation(
             sim_args.noise_covariance,
             sim_args.n_iters,
             real_spectra.shape[1], 
+            sim_args.noise_scalar if sim_args.noise_scalar is not None else 1.,
             sim_args.white_noise,
             device
         )
@@ -333,6 +334,7 @@ def _6_add_noise(
         sim_args_noise:    Optional[torch.FloatTensor],
         n_iters:           int,
         wavelength_dim:    int,
+        noise_scalar:      float,
         white_noise_scale: float,
         device:            Device
 
@@ -342,14 +344,14 @@ def _6_add_noise(
         if not (torch.linalg.eigvals(sim_args_noise).real>=0).all():
             sim_args_noise = make_positive_definite(sim_args_noise)
         means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
-        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,))
+        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,)) * noise_scalar
         
         # add white noise
         white_noise = torch.normal(mean=means.expand(n_iters, -1), std=float(white_noise_scale))
         noise = noise + white_noise
         
     else:
-        noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device)
+        noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device) * noise_scalar
 
     return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 

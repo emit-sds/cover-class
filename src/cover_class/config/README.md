@@ -48,6 +48,7 @@ simulation:
   alpha_uniform_low:    <Dirichlet distribution alpha low value [float]>
   alpha_uniform_high:   <Dirichlet distribution alpha high value [float]>
   white_noise:          <white noise scalar [float]>
+  noise_scalar:         <optional scalar to apply to the CSV noise>
   noise_covariance_csv: <path to the noise covariance csv file [string]>
   return_fractions:     <return the dirichlet fractions from the simulation [boolean]>
   glint_upper_scalar:   <upper bound for water class glint scalar [float]>
