@@ -9,12 +9,14 @@ from cover_class.simulation.simulate import force_fractions, _0_init_simulation_
 
 RANDOM_SEED = 42
 
+N_CLASSES = 10
+
 def new_SimulationArgs() -> SimulationArgs:
     return SimulationArgs(
         n_iters = 100,
         n_classes_in_subsets = 5,
-        n_classes = 10,
-        n_components = list(range(10)),
+        n_classes = N_CLASSES,
+        n_components = [list(range(10)) for _ in range(N_CLASSES)],
         min_frac = 0.,
         alpha = None,
         alpha_uniform_low = 0.,
@@ -22,6 +24,8 @@ def new_SimulationArgs() -> SimulationArgs:
         white_noise = 0.,
         noise_covariance = None,
         return_fractions = False,
+        glint_scalar_range = [None, None],
+        water_classes = [],
     )
 
 
@@ -46,7 +50,7 @@ class simulationTest(unittest.TestCase):
         # 1. `cumsum_n_components` should be monotomically increasing on a per-row basis and should all be in sim_args.n_components
         differences = torch.diff(cumsum_n_components, axis=1)
         self.assertTrue((differences >= 0).all().item())
-        self.assertTrue(torch.isin(torch.unique(differences), torch.tensor(sim_args.n_components)).all().item())
+        self.assertTrue(torch.isin(torch.unique(differences), torch.tensor([i for s in sim_args.n_components for i in s])).all().item())
         # 2. `cumsum_n_components` have the first value in every row be zero
         self.assertTrue((cumsum_n_components[:, 0] == 0).all().item())
 
@@ -206,11 +210,12 @@ class simulationTest(unittest.TestCase):
                 self.assertListEqual(counts.tolist(), expected_num_classes.tolist())
 
         with self.subTest("test_function_receives_expected_input"):
+            n_classes = 5
             sim_args = SimulationArgs(
                 n_iters=1,
                 n_classes_in_subsets=2,
-                n_classes=5,
-                n_components=[1, 2, 3],
+                n_classes=n_classes,
+                n_components=[[1, 2, 3] for _ in range(n_classes)],
                 min_frac=0.0,
                 alpha=0.3,
                 alpha_uniform_low=0.0,
@@ -218,6 +223,8 @@ class simulationTest(unittest.TestCase):
                 white_noise=0.0,
                 noise_covariance=None,
                 return_fractions=False,
+                glint_scalar_range = [None, None],
+                water_classes = [],
             )
 
             data_args = DataArgs(
@@ -264,7 +271,7 @@ class simulationTest(unittest.TestCase):
             torch.testing.assert_close(captured["classes"], classes)
             torch.testing.assert_close(captured["labels"], data_args.real_labels)
             self.assertEqual(captured["n_classes"], sim_args.n_classes)
-            self.assertEqual(captured["n_components_max"], max(sim_args.n_components))
+            self.assertEqual(captured["n_components_max"], max([max(i) for i in sim_args.n_components]))
             self.assertEqual(captured["dirichlet_2nd_dim_shape"], cumsum_n_components.max().item())
 
     def test_5_make_sim_spectra(self):
@@ -309,12 +316,13 @@ class simulationTest(unittest.TestCase):
         with self.subTest("test_function_receives_expected_input"):
             N = 10
             cov = torch.eye(N)
+            n_classes = 3
 
             sim_args = SimulationArgs(
                 n_iters=1,
                 n_classes_in_subsets=2,
-                n_classes=3,
-                n_components=[1, 2, 3],
+                n_classes=n_classes,
+                n_components=[[1, 2, 3] for _ in range(n_classes)],
                 min_frac=0.0,
                 alpha=0.3,
                 alpha_uniform_low=0.0,
@@ -322,6 +330,8 @@ class simulationTest(unittest.TestCase):
                 white_noise=123.45,
                 noise_covariance=cov,
                 return_fractions=False,
+                glint_scalar_range = [None, None],
+                water_classes = [],
             )
             data_args = DataArgs(torch.ones((120,N), dtype=torch.float32), torch.tensor(list(range(10))*12))
 
@@ -418,12 +428,13 @@ class simulationTest(unittest.TestCase):
     def test_0_init_simulation_state_force_class(self):
         torch.manual_seed(0)
 
+        n_classes = 50
         class SimArgs:
             def __init__(self):
                 self.n_iters = 64
                 self.n_classes_in_subsets = 6
                 self.n_classes = 50
-                self.n_components = [0, 1, 2, 3, 4]
+                self.n_components = [[0, 1, 2, 3, 4] for _ in range(n_classes)]
 
         sim_args = SimArgs()
         device = torch.device("cpu")
