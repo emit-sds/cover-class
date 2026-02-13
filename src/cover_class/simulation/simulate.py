@@ -344,7 +344,7 @@ def _6_add_noise(
         if not (torch.linalg.eigvals(sim_args_noise).real>=0).all():
             sim_args_noise = make_positive_definite(sim_args_noise)
         means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
-        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,)) * noise_scalar
+        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise * noise_scalar).sample((n_iters,))
         
         # add white noise
         white_noise = torch.normal(mean=means.expand(n_iters, -1), std=float(white_noise_scale))
