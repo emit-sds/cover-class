@@ -133,6 +133,7 @@ def run_simulation(
             sim_args.noise_covariance,
             sim_args.n_iters,
             real_spectra.shape[1], 
+            sim_args.noise_scalar if sim_args.noise_scalar is not None else 1.,
             sim_args.white_noise,
             device
         )
@@ -328,6 +329,7 @@ def _6_add_noise(
         sim_args_noise:    Optional[torch.FloatTensor],
         n_iters:           int,
         wavelength_dim:    int,
+        noise_scalar:      float,
         white_noise_scale: float,
         device:            Device
 
@@ -346,7 +348,7 @@ def _6_add_noise(
     else:
         noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device)
 
-    return noise.to(dtype=torch.float32)  # type: ignore[return-value]
+    return noise.to(dtype=torch.float32) * noise_scalar  # type: ignore[return-value]
 
 
 def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:

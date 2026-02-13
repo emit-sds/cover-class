@@ -20,6 +20,7 @@ def new_SimulationArgs() -> SimulationArgs:
         alpha_uniform_low = 0.,
         alpha_uniform_high = 0.,
         white_noise = 0.,
+        noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
     )
@@ -216,6 +217,7 @@ class simulationTest(unittest.TestCase):
                 alpha_uniform_low=0.0,
                 alpha_uniform_high=0.0,
                 white_noise=0.0,
+                noise_scalar=None,
                 noise_covariance=None,
                 return_fractions=False,
             )
@@ -320,6 +322,7 @@ class simulationTest(unittest.TestCase):
                 alpha_uniform_low=0.0,
                 alpha_uniform_high=0.0,
                 white_noise=123.45,
+                noise_scalar=None,
                 noise_covariance=cov,
                 return_fractions=False,
             )

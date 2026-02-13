@@ -40,6 +40,7 @@ simulation:
   alpha:                <alpha parameter for Dirichlet distribution [float]>
   min-frac:             <minimum fraction of class presence to be included in simulation [float]>
   noise-file:           <path to noise CSV file of covariances [string]>
+  noise_scalar:         <scalar to apply to the CSV file noise>
 subsample:
   test-fraction:   <test data split fraction [float]>
   selected-method: <subsampling method to use [string]>

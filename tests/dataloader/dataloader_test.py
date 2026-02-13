@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from cover_class.dataloader import OrchestratorDataset, OrchestratorDatasetArgs # type: ignore[import]
-from cover_class.simulation import SimulationArgs, DataArgs
+from cover_class.simulation import SimulationArgs, DataArgs # type: ignore[import]
 
 RANDOM_SEED = 42
 
@@ -31,6 +31,7 @@ def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
         alpha_uniform_low = 0.,
         alpha_uniform_high = 0.,
         white_noise = 0.,
+        noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
     ),
