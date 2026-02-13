@@ -344,16 +344,16 @@ def _6_add_noise(
         if not (torch.linalg.eigvals(sim_args_noise).real>=0).all():
             sim_args_noise = make_positive_definite(sim_args_noise)
         means = torch.zeros(sim_args_noise.shape[0], dtype=torch.float32, device=device)
-        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,))
+        noise = torch.distributions.MultivariateNormal(means, covariance_matrix=sim_args_noise).sample((n_iters,)) * noise_scalar
         
         # add white noise
         white_noise = torch.normal(mean=means.expand(n_iters, -1), std=float(white_noise_scale))
         noise = noise + white_noise
         
     else:
-        noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device)
+        noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device) * noise_scalar
 
-    return noise.to(dtype=torch.float32) * noise_scalar  # type: ignore[return-value]
+    return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 
 
 def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:
