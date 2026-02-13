@@ -26,6 +26,7 @@ simulation:
   alpha_uniform_low: 0.1
   alpha_uniform_high: 10.
   white_noise: 0.0001
+  noise_scalar: 
   noise_covariance_csv: /scratch/cmml/emit-frac/spectral_covariances_no_header_v2.csv
   return_fractions: true
 subsample:
