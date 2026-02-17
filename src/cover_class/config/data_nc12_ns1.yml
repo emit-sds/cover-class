@@ -19,14 +19,19 @@ datasets:
     - /scratch/cmml/emit-frac/datasets/20260129_ym/water_kmeans_subsampled_water_water.hdf5
 ood-test-set: /scratch/cmml/emit-frac/datasets/20260129_ym/validation.h5
 simulation:
-  n_components: [1,5]
+  n_components:
+    soil: [1]
+    pv: [1,2]
+    npv: [1,2]
+    snow+ice: [1,2]
+    water: [1,2]
   n_classes_in_subsets: 3
   alpha: 0.3
   min_frac: 0.1
   alpha_uniform_low: 0.1
   alpha_uniform_high: 10.
   white_noise: 0.0001
-  noise_scalar: 
+  noise_scalar: 1
   noise_covariance_csv: /scratch/cmml/emit-frac/spectral_covariances_no_header_v2.csv
   return_fractions: true
   glint_upper_scalar: 0.15
@@ -34,10 +39,6 @@ simulation:
 subsample:
   test-fraction: 0.2
   selected-method:
-  file-specific:
-    /scratch/cmml/emit-frac/20251214/rock_rock.hdf5:
-      random:
-        n_samples: 30
   convex-hull:
     num_pc: 4
     n_samples: 100
