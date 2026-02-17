@@ -190,7 +190,7 @@ def run_pipeline_classifier(
         run.log({"loss_train_epoch": avg_epoch_loss, "epoch": epoch})
 
         # Save model at each epoch
-        if epoch + 1 % 10 == 0:
+        if (epoch + 1) % 10 == 0:
             torch.save(model.state_dict(), os.path.join(outdir, f'model_epoch{epoch+1}.pth'))
 
         # Test loop
