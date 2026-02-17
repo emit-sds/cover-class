@@ -164,7 +164,6 @@ def run_report_generator(
         batch_X = torch.unsqueeze(batch_X, -1)
         with torch.no_grad():
             logits = model(batch_X)
-            test_batches += 1
             batch_y_hat = torch.sigmoid(logits)
             batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
             batch_len = len(batch_y_hat)
@@ -178,7 +177,6 @@ def run_report_generator(
         batch_X = torch.unsqueeze(batch_X, -1)
         with torch.no_grad():
             logits = model(batch_X)
-            ood_batches += 1
             batch_y_hat = torch.sigmoid(logits)
             batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
             batch_len = len(batch_y_hat)
