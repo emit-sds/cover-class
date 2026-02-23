@@ -143,7 +143,7 @@ class Report:
         generate_pdf_report(self, pdf_path)
         generate_json_report(self, json_path)
 
-    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: List[float], figure_list: List[Figure], class_names: List[str]) -> dict:
+    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], figure_list: List[Figure], class_names: List[str]) -> dict:
         # Calculate the optimal F1 thresholds if not specified
         if class_thresholds is None:
             class_thresholds = f1_opt_thr(y_hat, y, class_names)
