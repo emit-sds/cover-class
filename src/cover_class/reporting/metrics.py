@@ -196,12 +196,11 @@ def adaptive_calibration_error(): ...
 def f1_opt_thr(
         y_hat: Union[Tensor, NDArray],
         y: Union[Tensor, NDArray],
-        class_names: List[str],
         beta: float = 1.0,
         n_steps: int = 101,
     ) -> List[float]:
     """
-    Finds the threshold for each class that maximizes the F1 score.
+    Finds the per-class threshold that maximises the F-beta score.
     Returns a list of optimal thresholds, one per class.
     """
     y_hat = make_numpy(y_hat)
@@ -210,16 +209,26 @@ def f1_opt_thr(
     thresholds = np.linspace(0, 1, n_steps)
     opt_thr = []
     for c in range(n_classes):
+        yt = y[:, c]
+        yp = y_hat[:, c]
+
+        # Edge case: class absent from ground truth or predictions are constant.
+        if yt.sum() == 0 or np.unique(yp).size == 1:
+            opt_thr.append(0.5)
+            continue
+
         best_thr = 0.5
-        best_f1 = -1
+        best_fb  = -1.0
         for thr in thresholds:
-            y_hat_bin = np.zeros_like(y_hat)
-            y_hat_bin[:, c] = (y_hat[:, c] >= thr).astype(int)
-            # Only update the c-th column, others remain zero
-            scores = f_beta_scores(y_hat_bin, y, class_names, beta=beta)
-            f1 = scores[class_names[c]][f"F-{beta} Score"]
-            if f1 > best_f1:
-                best_f1 = f1
-                best_thr = thr
-        opt_thr.append(float(best_thr))
+            yp_bin = (yp >= thr).astype(int)
+            tp = int(((yt == 1) & (yp_bin == 1)).sum())
+            fp = int(((yt == 0) & (yp_bin == 1)).sum())
+            fn = int(((yt == 1) & (yp_bin == 0)).sum())
+            prec = tp / (tp + fp + 1e-12)
+            rec  = tp / (tp + fn + 1e-12)
+            fb   = (1 + beta**2) * prec * rec / (beta**2 * prec + rec + 1e-12)
+            if fb > best_fb:
+                best_fb  = fb
+                best_thr = float(thr)
+        opt_thr.append(best_thr)
     return opt_thr

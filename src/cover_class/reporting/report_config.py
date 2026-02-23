@@ -108,7 +108,7 @@ class Report:
 
         # Calculate the optimal F1 thresholds only on the test set if not specified
         if class_thresholds is None:
-            class_thresholds = f1_opt_thr(y_hat, self.Y_test, class_names)
+            class_thresholds = f1_opt_thr(y_hat, self.Y_test)
 
         if self.test_metric_table is None:
             self.test_metric_table = {}
@@ -146,7 +146,7 @@ class Report:
     def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], figure_list: List[Figure], class_names: List[str]) -> dict:
         # Calculate the optimal F1 thresholds if not specified
         if class_thresholds is None:
-            class_thresholds = f1_opt_thr(y_hat, y, class_names)
+            class_thresholds = f1_opt_thr(y_hat, y)
 
         assert len(class_thresholds) == y_hat.shape[-1], f"Got {len(class_thresholds)} thresholds for {y_hat.shape[-1]} classes"
 
