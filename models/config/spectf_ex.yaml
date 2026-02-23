@@ -27,5 +27,5 @@ random_seed: 42
 
 # Weights & Biases logging
 wandb:
-  entity:
-  project:
+  entity: "your_wandb_entity"
+  project: "spectf_ex"
