@@ -101,7 +101,7 @@ class Report:
         
         self.y_hat = np.zeros_like(self.Y_test)
 
-    def make_report(self, y_hat: Union[Tensor, NDArray], class_thresholds: List[float], y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None):
+    def make_report(self, y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None):
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
