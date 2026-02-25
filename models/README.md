@@ -36,6 +36,6 @@ $ python3 models/training_example.py --help
 
 ## SpecTf
 
-`training_spectf.py` is a SpecTf implementation of the training script, and `report_spectf.py` is an example intended to demonstrate inference.
+`models/spectf/training_spectf.py` is a SpecTf implementation of the training script, and `models/spectf/report_spectf.py` is an example intended to demonstrate inference.
 
 These scripts rely on the SpecTf package. Installation instructions can be found at https://github.com/emit-sds/SpecTf/blob/dev/spectf_cloud/README.md#-installation . Specifically, `make dev-install` should be called from the SpecTf repository.
