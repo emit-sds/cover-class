@@ -41,29 +41,6 @@ def appy_water_scalar(data_args: DataArgs, glint_scalar_range: Tuple[Optional[fl
     return FloatTensor(X)
 
 
-# def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
-#     if force_frac_range is None or force_class is None:
-#         return dirich_fractions
-
-#     # 1. get the index of the force class from comparing classes to cumsum_n_components
-#     rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
-#     fcol = (classes == force_class).long().argmax(1)
-#     fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
-
-#     # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
-#     old  = dirich_fractions[rows, fidx]
-#     new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
-
-#     # 3. return the newly adjusted fractions
-#     other = 1 - old
-#     ok = other > 0
-#     dirich_fractions[~ok] = 0.0
-#     dirich_fractions[rows[~ok], fidx[~ok]] = 1
-#     dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
-#     dirich_fractions[rows[ok], fidx[ok]] = new[ok]
-#     return dirich_fractions
-
-
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
     mask_pad = F.pad(mask.to(dtype=torch.int64, device=mask.device).cumsum_(dim=1), (1, 0), value=0) # pad left side with 0
     s = (
