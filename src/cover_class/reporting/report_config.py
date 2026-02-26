@@ -3,10 +3,11 @@ from matplotlib.figure import Figure
 from dataclasses import dataclass, field
 from datetime import datetime
 from numpy.typing import NDArray
-from torch import Tensor
 import torch
+from torch import Tensor
 import getpass
 import os
+import numpy as np
 from copy import deepcopy
 
 from cover_class.utils import read_config
@@ -16,6 +17,7 @@ from cover_class.reporting.metrics import (
     missed_class_confusion, 
     tpr_fpr, 
     f_beta_scores,
+    f1_opt_thr
 )
 from cover_class.reporting.json_report import generate_json_report
 from cover_class.reporting.pdf_report import generate_pdf_report
@@ -54,7 +56,6 @@ class Report:
     config: str|Dict
     model_config: ModelConfig
     Y_test: Union[Tensor, NDArray]
-
     Y_ood_test: Optional[Union[Tensor, NDArray]] = None
     train_plots: List[GenLinePlot] = field(default_factory=list)
     test_plots: List[GenLinePlot] = field(default_factory=list)
@@ -98,11 +99,17 @@ class Report:
         if self._download_missing_qualitative_testing_scenes_from_config:
             uris = read_config(self.config).get("test-scene-urls", [])
             self.qualitative_testing_scenes_paths.extend(download_scenes(uris))
+        
+        self.y_hat = np.zeros_like(self.Y_test)
 
-    def make_report(self, y_hat: Tensor, class_thresholds: List[float], y_hat_ood_test: Optional[Tensor] = None):
+    def make_report(self, y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None):
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
+
+        # Calculate the optimal F1 thresholds only on the test set if not specified
+        if class_thresholds is None:
+            class_thresholds = f1_opt_thr(y_hat, self.Y_test)
 
         if self.test_metric_table is None:
             self.test_metric_table = {}
@@ -135,12 +142,16 @@ class Report:
         generate_pdf_report(self, pdf_path)
         generate_json_report(self, json_path)
 
-    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Tensor, class_thresholds: List[float], figure_list: List[Figure], class_names: List[str]) -> dict:
+    def generate_metrics(self, y: Union[Tensor, NDArray], y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], figure_list: List[Figure], class_names: List[str]) -> dict:
+        # Calculate the optimal F1 thresholds if not specified
+        if class_thresholds is None:
+            class_thresholds = f1_opt_thr(y_hat, y)
+
         assert len(class_thresholds) == y_hat.shape[-1], f"Got {len(class_thresholds)} thresholds for {y_hat.shape[-1]} classes"
 
-        y_hat_binary = (y_hat >= torch.tensor(class_thresholds, device=y_hat.device, dtype=y_hat.dtype)).to(torch.long)
-        y_hat_binary = make_numpy(y_hat_binary) # type: ignore
-        y_hat = make_numpy(y_hat) # type: ignore
+        y = make_numpy(y)
+        y_hat = make_numpy(y_hat)
+        y_hat_binary = (y_hat >= np.array(class_thresholds)).astype(int)
 
         lcn = len(class_names)
         

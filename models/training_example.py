@@ -103,10 +103,13 @@ def run_pipeline_classifier(
         print("Creating HDF5s from config")
         generate_hdf5_from_config(static_config)
     
+    print('start')
+    print('setup training from config')
     run_name = make_run_name()
     dataloader, test_X, test_Y = setup_training_from_config(config, batch_size, True, seed, outdir, run_name)
 
     ## create simulation eval set
+    print('simulation')
     sseed(seed)
     simulation_x_test, simulation_y_test, _ = make_simulation_test_set(dataloader, test_X, test_Y, simulated_test_set_size)
 
@@ -140,7 +143,10 @@ def run_pipeline_classifier(
             return self.fc(x)
 
     num_classes = len(torch.unique(test_Y))
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print('device', device)
     model       = MultiLabelClassifier(input_dim=test_X.shape[1], num_classes=num_classes)
+    model       = model.to(device)
     criterion   = nn.BCEWithLogitsLoss()
     optimizer   = optim.AdamW(model.parameters(), lr=lr)
 
@@ -174,18 +180,18 @@ def run_pipeline_classifier(
             break
 
         optimizer.zero_grad(set_to_none=True)
-        logits: torch.Tensor = model(batch_X)
-        loss: torch.Tensor = criterion(logits, batch_Y)
+        logits: torch.Tensor = model(batch_X.to(device))
+        loss: torch.Tensor = criterion(logits, batch_Y.to(device))
         loss.backward()
         optimizer.step()
     
-        nats = loss.item()
+        nats = loss.cpu().item()
 
         losses["loss"].append(nats) #type: ignore
         losses["Welford arithmetic mean"] = losses["Welford arithmetic mean"] + (nats - losses["Welford arithmetic mean"])/accumulator # type: ignore
         
         if log_interval is not None and (accumulator % log_interval == 0 or accumulator == 0):
-            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses["Welford arithmetic mean"]:.4f}")
+            print(f"Step {accumulator:>7} | BCE loss: {nats:.4f} nats | Running average mean: {losses['Welford arithmetic mean']:.4f}")
     
     ## Save model
     torch.save(model.state_dict(), os.path.join(outdir, 'model.pth'))
@@ -210,10 +216,13 @@ def run_pipeline_classifier(
 
     ## Finally, generate the report
     with torch.no_grad():
-        y_hat = torch.sigmoid(model(simulation_x_test))
-        y_hat_ood = torch.sigmoid(model(ood_test_set_x))
+        y_hat = torch.sigmoid(model(simulation_x_test.to(device)))
+        y_hat = y_hat.detach().cpu()
+        y_hat_ood = torch.sigmoid(model(ood_test_set_x.to(device)))
+        y_hat_ood = y_hat_ood.detach().cpu()
     thresholds = [0.5] * y_hat.shape[-1]
     report.make_report(y_hat, thresholds, y_hat_ood)
+
 
 if __name__ == "__main__": 
     run_pipeline_classifier()
