@@ -1,6 +1,7 @@
 import os
 
 # Set CUBLAS_WORKSPACE_CONFIG for deterministic CUDA behavior
+# pylint: disable=wrong-import-position
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 import getpass
@@ -88,7 +89,6 @@ def run_pipeline_classifier(
         misc_dataloader_params={'num_workers': m_config['training']['num_workers']})
 
     banddef = banddef_from_config(data_config)
-    print("DEBUG", banddef.shape)
 
     # create simulation eval set
     sseed(m_config['random_seed'])
@@ -261,5 +261,6 @@ def run_pipeline_classifier(
     # Generate report at end of training
     report.make_report(y_hat, None, y_hat_ood)
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
+    # pylint: disable=no-value-for-parameter
     run_pipeline_classifier()
