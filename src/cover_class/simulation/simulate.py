@@ -41,27 +41,27 @@ def appy_water_scalar(data_args: DataArgs, glint_scalar_range: Tuple[Optional[fl
     return FloatTensor(X)
 
 
-def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
-    if force_frac_range is None or force_class is None:
-        return dirich_fractions
+# def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
+#     if force_frac_range is None or force_class is None:
+#         return dirich_fractions
 
-    # 1. get the index of the force class from comparing classes to cumsum_n_components
-    rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
-    fcol = (classes == force_class).long().argmax(1)
-    fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
+#     # 1. get the index of the force class from comparing classes to cumsum_n_components
+#     rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
+#     fcol = (classes == force_class).long().argmax(1)
+#     fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
 
-    # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
-    old  = dirich_fractions[rows, fidx]
-    new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
+#     # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
+#     old  = dirich_fractions[rows, fidx]
+#     new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
 
-    # 3. return the newly adjusted fractions
-    other = 1 - old
-    ok = other > 0
-    dirich_fractions[~ok] = 0.0
-    dirich_fractions[rows[~ok], fidx[~ok]] = 1
-    dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
-    dirich_fractions[rows[ok], fidx[ok]] = new[ok]
-    return dirich_fractions
+#     # 3. return the newly adjusted fractions
+#     other = 1 - old
+#     ok = other > 0
+#     dirich_fractions[~ok] = 0.0
+#     dirich_fractions[rows[~ok], fidx[~ok]] = 1
+#     dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
+#     dirich_fractions[rows[ok], fidx[ok]] = new[ok]
+#     return dirich_fractions
 
 
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
@@ -104,8 +104,7 @@ def run_simulation(
         dirich_fractions, mask = _2_generate_dirichlet_distribution(alpha, sim_args.min_frac)
         del alpha
 
-        dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
-        dirich_fractions = force_fractions(dirich_fractions, force_frac_range, force_class, classes, cumsum_n_components)
+        dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask, force_frac_range, force_class, classes, cumsum_n_components)
         
         filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
         # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
@@ -227,16 +226,41 @@ def _2_generate_dirichlet_distribution(
 
 
 def _3_remove_small_fractions(
-        dirich_fractions: FloatTensor, 
-        mask:             BoolTensor
+        dirich_fractions:    FloatTensor, 
+        mask:                BoolTensor,
+        force_frac_range:    Optional[ForceFracRange], 
+        force_class:         Optional[int],
+        classes:             CharTensor, 
+        cumsum_n_components: LongTensor,
         
     ) -> FloatTensor:
+    adjust_for_force_class = (force_class is not None and force_frac_range is not None)
+    if adjust_for_force_class:
+        # 1. get the index of the force class from comparing classes to cumsum_n_components
+        rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
+        fcol = (classes == force_class).long().argmax(1) # type: ignore[attr-defined]
+        fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
+        mask[rows, fidx] = True
+
     # all operations are inplace
     r = (mask.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
     mask[r, dirich_fractions.argmax(dim=1)[r]] = True # guarantees at least 1 class per simulation
 
     dirich_fractions.masked_fill_(~mask, 0)
     dirich_fractions.div_(dirich_fractions.sum(dim=1)[:, None])
+
+    if adjust_for_force_class:
+        # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
+        old  = dirich_fractions[rows, fidx]
+        new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1) # type: ignore[union-attr]
+
+        # 3. return the newly adjusted fractions
+        other = 1 - old
+        ok = other > 0
+        dirich_fractions[~ok] = 0.0
+        dirich_fractions[rows[~ok], fidx[~ok]] = 1
+        dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
+        dirich_fractions[rows[ok], fidx[ok]] = new[ok]
 
     # now we need to align the matrix again
     return dirich_fractions.gather(1, (dirich_fractions != 0).int().argsort(descending=True)) # type: ignore[return-value]
