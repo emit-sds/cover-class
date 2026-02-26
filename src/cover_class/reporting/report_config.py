@@ -8,6 +8,7 @@ from torch import Tensor
 import getpass
 import os
 import numpy as np
+from copy import deepcopy
 
 from cover_class.utils import read_config
 from cover_class.reporting.metrics import (
@@ -121,11 +122,9 @@ class Report:
 
         # Get the metrics for the fractional simulation results
         self._fractional_simulation_test_dict['TPR'] = {}
-        self._fractional_simulation_test_dict['FPR'] = {}
         for i, thresh in enumerate(class_thresholds):
             class_name = class_names[i]
             self._fractional_simulation_test_dict['TPR'][class_name] = {}
-            self._fractional_simulation_test_dict['FPR'][class_name] = {}
             for f in self.fractional_simulation_test_results:
                 if f.class_id != i:
                     continue
@@ -133,7 +132,7 @@ class Report:
                 rates = tpr_fpr(f_y_hat_binary, f.y, class_names)[class_name]
                 rname = f'{f.range_low*100} - {f.range_high*100} %'
                 self._fractional_simulation_test_dict['TPR'][class_name][rname] = rates['TPR']
-                self._fractional_simulation_test_dict['FPR'][class_name][rname] = rates['FPR']
+                assert round(rates['FPR'], 5) == 0., f"Unexpected FPR > 0 for {class_name} for the forced fraction simulation - got {rates['FPR']}"
 
         # 2. Generate Report
         os.makedirs(self.outdir, exist_ok=True)
@@ -176,6 +175,6 @@ class Report:
     def append_fractional_simulation_result(self, f: ForcedFractionSimulation, y_hat: Tensor):
         if f.latest_simulation_labels is None:
             raise RuntimeWarning("Cannot associate proper simulation labels to append results data")
-        fr = FractionalSimulationResult(f.ranges[f.range_idx][0], f.ranges[f.range_idx][1], f.class_idx, y_hat, f.latest_simulation_labels)
+        fr = FractionalSimulationResult(f.ranges[f.range_idx][0], f.ranges[f.range_idx][1], f.class_idx, y_hat, deepcopy(f.latest_simulation_labels))
         self.fractional_simulation_test_results.append(fr)
 

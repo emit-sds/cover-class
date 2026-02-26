@@ -168,8 +168,6 @@ def add_section(
     if fractional_simulation_test_dict is not None:
         _metrics_table(contents, report_styles, fractional_simulation_test_dict['TPR'], "Fractional Simulation TPR")
         contents.append(Spacer(1, 0.1 * inch))
-        _metrics_table(contents, report_styles, fractional_simulation_test_dict['FPR'], "Fractional Simulation FPR")
-        contents.append(Spacer(1, 0.1 * inch))
     contents.append(Paragraph(f"{title} Plots", report_styles["Heading2"]))
     contents.append(Spacer(1, 0.1 * inch))
 
