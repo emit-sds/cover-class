@@ -14,8 +14,8 @@ from numpy.typing import NDArray
 import torch
 from torch.utils.data import Dataset, DataLoader
 from osgeo import gdal
+from tqdm import tqdm
 
-from cover_class.train import banddef_from_config #type: ignore
 from cover_class.utils import seed as sseed #type: ignore
 from cover_class.utils import read_config
 from cover_class.subsample.forward_pipeline import drop_bad_bands, drop_bad_banddef
@@ -24,6 +24,7 @@ from spectf.model import SpecTfEncoder
 from spectf.utils import get_device
 
 ENV_VAR_PREFIX = 'COVER_CLASS_SCENE_'
+
 
 class RasterDataset(Dataset):
     def __init__(self, nc_path, config_path):
@@ -107,6 +108,8 @@ def run_scene(
 
     # hardcoded GPU 0
     device = get_device(0)
+    ds = dataset.data_config['datasets']
+    class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
 
     # model definition
     model = SpecTfEncoder(banddef.to(dtype=torch.float32, device=device),
@@ -125,17 +128,28 @@ def run_scene(
     model.eval()
 
     # Inference loop
-    predicted_fractions = np.zeros((len(dataset), m_config['model']['dim_output']), dtype=float)
-    for i, batch in enumerate(dataloader):
+    predicted_fractions = np.zeros((len(dataset), m_config['model']['dim_output']), dtype=np.float32)
+    for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc="Running inference on scene"):
         batch = batch.to(device)
+        batch = torch.unsqueeze(batch, -1)
         with torch.no_grad():
             logits = model(batch)
             batch_y_hat = torch.sigmoid(logits)
-            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
+            batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(np.float32)
 
         predicted_fractions[i*bs:i*bs+batch.shape[0]] = batch_y_hat
-    predicted_fraction = predicted_fractions.reshape(dataset.orig_shape)
+    predicted_fraction = predicted_fractions.reshape(dataset.orig_shape[0], dataset.orig_shape[1], m_config['model']['dim_output'])
 
+    outpath = os.path.join(outdir, f"{os.path.basename(scene).split('.')[0]}_pred_frac.tif")
+
+    mem_driver, tiff_driver = gdal.GetDriverByName('MEM'), gdal.GetDriverByName('GTiff')
+    opts = ['TILED=YES', 'COMPRESS=LZW', 'BLOCKXSIZE=256', 'BLOCKYSIZE=256', 'COPY_SRC_OVERVIEWS=YES']
+    ds = mem_driver.Create('', dataset.orig_shape[1], dataset.orig_shape[0], m_config['model']['dim_output'], gdal.GDT_Float32)
+    for i in range(m_config['model']['dim_output']):
+        ds.GetRasterBand(i+1).WriteArray(predicted_fraction[:,:,i])
+        ds.GetRasterBand(i+1).SetNoDataValue(-9999)
+        ds.GetRasterBand(i+1).SetDescription(class_names[i] if i < len(class_names) else f'class_{i}')
+    tiff_driver.CreateCopy(outpath, ds, options=opts)
 
 
 if __name__ == "__main__": 
