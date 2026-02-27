@@ -6,11 +6,9 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 import rich_click as click
 import yaml
-from typing import List
 
 import h5py
 import numpy as np
-from numpy.typing import NDArray
 import torch
 from torch.utils.data import Dataset, DataLoader
 from osgeo import gdal
@@ -108,8 +106,8 @@ def run_scene(
 
     # hardcoded GPU 0
     device = get_device(0)
-    ds = dataset.data_config['datasets']
-    class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
+    ds_conf = dataset.data_config['datasets']
+    class_names = [str(c) for c in ds_conf.keys() if ds_conf[c] is not None and len(ds_conf[c])]
 
     # model definition
     model = SpecTfEncoder(banddef.to(dtype=torch.float32, device=device),
@@ -130,7 +128,7 @@ def run_scene(
     # Inference loop
     predicted_fractions = np.zeros((len(dataset), m_config['model']['dim_output']), dtype=np.float32)
     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc="Running inference on scene"):
-        batch = batch.to(device)
+        batch = batch.to(device=device, dtype=torch.float32)
         batch = torch.unsqueeze(batch, -1)
         with torch.no_grad():
             logits = model(batch)
@@ -149,7 +147,9 @@ def run_scene(
         ds.GetRasterBand(i+1).WriteArray(predicted_fraction[:,:,i])
         ds.GetRasterBand(i+1).SetNoDataValue(-9999)
         ds.GetRasterBand(i+1).SetDescription(class_names[i] if i < len(class_names) else f'class_{i}')
-    tiff_driver.CreateCopy(outpath, ds, options=opts)
+    _ = tiff_driver.CreateCopy(outpath, ds, options=opts)
+    del _
+    del ds
 
 
 if __name__ == "__main__": 
