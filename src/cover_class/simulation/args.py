@@ -47,7 +47,6 @@ class DataArgs(Struct):
 def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, batch_size:int) -> Tuple[SimulationArgs, DataArgs]:
     config = read_config(config)
     sim_config:dict = config['simulation']
-    dv = config['datasets'].values()
     n_classes = sum(map(bool, config['datasets'].values()))
     noise_cov = None
     if sim_config['noise_covariance_csv']:
