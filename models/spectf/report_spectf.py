@@ -184,10 +184,12 @@ def run_report_generator(
             y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
 
     # Fraction simulation
-    fraction_ranges = [(0.01, 0.05), (0.05, 0.10), (0.10, 0.15), (0.15, 0.25), (0.25, 0.50)]
     ff_simulated_test_set_size = 100
-    fs = ForcedFractionSimulation(dataloader, test_X, test_Y, ff_simulated_test_set_size, fraction_ranges)
+    fs = ForcedFractionSimulation(dataloader, test_X, test_Y, ff_simulated_test_set_size)
+    fs.hard_max_iters = 1_000
     for frac_sim_data, _ in fs:
+        if len(frac_sim_data) == 0:
+            continue
         with torch.no_grad():
             frac_sim_data = frac_sim_data.unsqueeze(-1)
             frac_sim_y_hat = torch.sigmoid(model(frac_sim_data.to(device=device, dtype=torch.float32)))

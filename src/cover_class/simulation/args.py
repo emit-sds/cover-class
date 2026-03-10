@@ -28,6 +28,7 @@ class SimulationArgs(Struct):
     def __post_init__(self):
         assert len(self.n_components) == self.n_classes, f"Number of classes, {self.n_classes}, must match the number of component sampling ranges, {len(self.n_components)}"
         assert all(len(i) for i in self.n_components), "All classes must have a non-empty value for the `n_components` config"
+        assert isinstance(self.forced_fractions, dict), "simulation/forced_fraction_test_set needs to contain key-value pairs"
 
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
@@ -60,8 +61,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
     ]
 
     class_names = [c for c,v in config['datasets'].items() if v is not None]
-    ffracs = sim_config.get("forced_fraction_test_set",None)
-    assert isinstance(ffracs, dict) or ffracs is None, "simulation/forced_fraction_test_set needs to contain key-value pairs"
+    ffracs = sim_config.get("forced_fraction_test_set", {})
 
     s = SimulationArgs(
         n_iters = batch_size,
@@ -79,7 +79,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         glint_scalar_range = (sim_config["glint_lower_scalar"], sim_config["glint_upper_scalar"]),
         water_classes = [i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],
         class_names = class_names,
-        forced_fractions = ffracs or {},
+        forced_fractions = ffracs,
     )
 
     d = DataArgs(

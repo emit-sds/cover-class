@@ -32,6 +32,7 @@ class ForcedFractionSimulation(Iterator):
         self.sim_args.n_iters = n_rows
         self.data_args = DataArgs(test_spectra, test_labels)
 
+        assert ods.args.num_classes == len(self.sim_args.class_names)
         self.num_classes = ods.args.num_classes
         self.ranges = self.sim_args.forced_fractions
         self.one_hot_encode = one_hot_encode
@@ -39,7 +40,7 @@ class ForcedFractionSimulation(Iterator):
     def __next__(self) -> Tuple[FloatTensor, LongTensor]:
         self.range_idx += 1
         this_range = self.get_range()
-        last_class = len(self.sim_args.class_names)-1
+        last_class = self.num_classes-1
         while self.range_idx == len(this_range) and self.class_idx < last_class:
             self.class_idx += 1
             self.range_idx = 0
