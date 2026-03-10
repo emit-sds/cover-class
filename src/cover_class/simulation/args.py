@@ -75,7 +75,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         glint_scalar_range=sim_config["glint_range"],
         water_classes=[i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],
         magnitude_range=sim_config["magnitude_range"],
-        magnitude_max=sim_config.get("magnitude_max"),
+        magnitude_max=sim_config["magnitude_max"],
     )
 
     d = DataArgs(
