@@ -48,7 +48,8 @@ class ForcedFractionSimulation(Iterator):
         simulation_data = FloatTensor()
         simulation_labels = LongTensor()
         
-        while (len(simulation_labels) < self.sim_args.n_iters and self.hard_max_iters > 0):
+        hard_max_iters = 0
+        while (len(simulation_labels) < self.sim_args.n_iters and hard_max_iters < self.hard_max_iters):
             simulation_data_iter, simulation_labels_iter, _ = run_simulation(
                 self.sim_args, 
                 self.data_args, 
@@ -59,7 +60,7 @@ class ForcedFractionSimulation(Iterator):
             num_left = self.sim_args.n_iters - len(simulation_data)
             simulation_data = torch.concatenate((simulation_data, simulation_data_iter[:num_left]), dim=0) # type: ignore
             simulation_labels = torch.concatenate((simulation_labels, simulation_labels_iter[:num_left]), dim=0) # type: ignore
-            self.hard_max_iters -= 1
+            hard_max_iters += 1
 
         if len(simulation_labels) != self.sim_args.n_iters:
             warnings.warn(f"Unable to generate desired {self.sim_args.n_iters} samples in {self.hard_max_iters} runs for class {self.class_idx}. Only got {len(simulation_labels)}.")
