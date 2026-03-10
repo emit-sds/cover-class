@@ -1,17 +1,16 @@
 import os
 
 # Set CUBLAS_WORKSPACE_CONFIG for deterministic CUDA behavior
+# pylint: disable=wrong-import-position
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 import getpass
 from datetime import datetime
 import rich_click as click
 import yaml
-import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 from cover_class.train import setup_training_from_config, make_simulation_test_set, banddef_from_config #type: ignore
@@ -97,7 +96,6 @@ def run_report_generator(
 
     # Get banddef (wavelength definitions) from the hdf5 files specified in the data config
     banddef = banddef_from_config(data_config)
-    print("DEBUG", banddef.shape)
 
     # Create the simulated test set
     sseed(m_config['random_seed'])
@@ -196,5 +194,6 @@ def run_report_generator(
     # Generate report
     report.make_report(y_hat, None, y_hat_ood)
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
+    # pylint: disable=no-value-for-parameter
     run_report_generator()
