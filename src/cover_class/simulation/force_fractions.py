@@ -25,7 +25,6 @@ class ForcedFractionSimulation(Iterator):
             test_spectra: FloatTensor,
             test_labels: Tensor,
             n_rows: int,
-            ranges: List[Tuple[int, int]],
             one_hot_encode: bool = True
         ) -> None:
         ods: OrchestratorDataset = dataloader.dataset # type: ignore
@@ -33,16 +32,20 @@ class ForcedFractionSimulation(Iterator):
         self.sim_args.n_iters = n_rows
         self.data_args = DataArgs(test_spectra, test_labels)
 
+        assert ods.args.num_classes == len(self.sim_args.class_names)
         self.num_classes = ods.args.num_classes
-        self.ranges = ranges
+        self.ranges = self.sim_args.forced_fractions
         self.one_hot_encode = one_hot_encode
     
     def __next__(self) -> Tuple[FloatTensor, LongTensor]:
         self.range_idx += 1
-        if self.range_idx == len(self.ranges):
+        this_range = self.get_range()
+        last_class = self.num_classes-1
+        while self.range_idx == len(this_range) and self.class_idx < last_class:
             self.class_idx += 1
             self.range_idx = 0
-        if self.class_idx == self.num_classes:
+            this_range = self.get_range()
+        if self.class_idx == last_class and self.range_idx == len(this_range):
             raise StopIteration()
         
         simulation_data = FloatTensor()
@@ -55,7 +58,7 @@ class ForcedFractionSimulation(Iterator):
                 self.data_args, 
                 self.data_args.real_spectra.device, 
                 self.class_idx, 
-                ForceFracRange(*self.ranges[self.range_idx]),
+                ForceFracRange(*this_range[self.range_idx]),
             )
             num_left = self.sim_args.n_iters - len(simulation_data)
             simulation_data = torch.concatenate((simulation_data, simulation_data_iter[:num_left]), dim=0) # type: ignore
@@ -72,3 +75,6 @@ class ForcedFractionSimulation(Iterator):
         
         self.latest_simulation_labels = simulation_labels
         return simulation_data, simulation_labels
+    
+    def get_range(self):
+        return self.ranges.get(self.sim_args.class_names[self.class_idx], None) or []

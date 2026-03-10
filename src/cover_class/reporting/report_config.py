@@ -175,6 +175,6 @@ class Report:
     def append_fractional_simulation_result(self, f: ForcedFractionSimulation, y_hat: Tensor):
         if f.latest_simulation_labels is None:
             raise RuntimeWarning("Cannot associate proper simulation labels to append results data")
-        fr = FractionalSimulationResult(f.ranges[f.range_idx][0], f.ranges[f.range_idx][1], f.class_idx, y_hat, deepcopy(f.latest_simulation_labels))
+        fr = FractionalSimulationResult(f.get_range()[f.range_idx][0], f.get_range()[f.range_idx][1], f.class_idx, y_hat, deepcopy(f.latest_simulation_labels))
         self.fractional_simulation_test_results.append(fr)
 
