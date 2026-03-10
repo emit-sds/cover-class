@@ -31,6 +31,13 @@ simulation:
   glint_range: [0.0, 0.15]
   magnitude_range: [0.5, 2.0]
   magnitude_max: 1.5
+  forced_fraction_test_set:
+    soil: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    pv: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    npv: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    ash+char:
+    snow+ice:
+    water:
 subsample:
   test-fraction: 0.2
   selected-method: convex-hull

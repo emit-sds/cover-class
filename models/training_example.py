@@ -206,10 +206,12 @@ def run_pipeline_classifier(
     report.train_figures.append(fig)
 
     ## Generate fractional simulation data for each class to test model performance on
-    fraction_ranges = [(0.01, 0.05), (0.05, 0.10), (0.10, 0.15), (0.15, 0.25), (0.25, 0.50)]
     simulated_test_set_size = 100
-    fs = ForcedFractionSimulation(dataloader, test_X, test_Y, simulated_test_set_size, fraction_ranges)
+    fs = ForcedFractionSimulation(dataloader, test_X, test_Y, simulated_test_set_size)
+    fs.hard_max_iters = 1_000 # sets the max number of simulation runs to do in hopes of generating `simulated_test_set_size` samples
     for frac_sim_data, _ in fs:
+        if len(frac_sim_data) == 0:
+            continue
         with torch.no_grad():
             frac_sim_y_hat = torch.sigmoid(model(frac_sim_data))
         report.append_fractional_simulation_result(fs, frac_sim_y_hat)

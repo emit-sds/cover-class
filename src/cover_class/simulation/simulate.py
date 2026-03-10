@@ -51,29 +51,6 @@ def augment_magnitude(spectra: FloatTensor, labels: Tensor, magnitude_range: Tup
     return spectra
 
 
-def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
-    if force_frac_range is None or force_class is None:
-        return dirich_fractions
-
-    # 1. get the index of the force class from comparing classes to cumsum_n_components
-    rows = torch.arange(dirich_fractions.shape[0], device=dirich_fractions.device)
-    fcol = (classes == force_class).long().argmax(1)
-    fidx = cumsum_n_components.gather(1, (fcol + 1).unsqueeze(1)).squeeze(1) - 1  # component idx 
-
-    # 2. get the current dirich_fractions values at the indices and random uniform draw from the force_frac_range
-    old  = dirich_fractions[rows, fidx]
-    new  = (force_frac_range.low + (force_frac_range.high - force_frac_range.low) * torch.rand_like(old)).clamp_(0, 1)
-
-    # 3. return the newly adjusted fractions
-    other = 1 - old
-    ok = other > 0
-    dirich_fractions[~ok] = 0.0
-    dirich_fractions[rows[~ok], fidx[~ok]] = 1
-    dirich_fractions[ok] = dirich_fractions[ok] * (((1 - new[ok]) / other[ok]).unsqueeze(1))
-    dirich_fractions[rows[ok], fidx[ok]] = new[ok]
-    return dirich_fractions
-
-
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
     mask_pad = F.pad(mask.to(dtype=torch.int64, device=mask.device).cumsum_(dim=1), (1, 0), value=0) # pad left side with 0
     s = (
@@ -117,12 +94,30 @@ def run_simulation(
         dirich_fractions, mask = _2_generate_dirichlet_distribution(alpha, sim_args.min_frac)
         del alpha
 
-        dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
-        dirich_fractions = force_fractions(dirich_fractions, force_frac_range, force_class, classes, cumsum_n_components)
-        
-        filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
-        # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
-        classes.masked_fill_(~filtered_n_components_per_class.to(dtype=torch.bool, device=device), NULL_CLASS_VALUE)
+        filtered_n_components_per_class: ShortTensor
+        if force_frac_range is not None:
+            lo, hi = force_frac_range.low, force_frac_range.high
+            if hi < lo:
+                lo, hi = hi, lo
+
+            # Number of components per selected class in each row.
+            filtered_n_components_per_class = (cumsum_n_components[:, 1:] - cumsum_n_components[:, :-1]).to(dtype=torch.int16, device=device) #type: ignore
+
+            # Sum the Dirichlet fractions by class for each row, then look at the target class.
+            fracs_by_class = get_fractions_by_class(filtered_n_components_per_class, classes, dirich_fractions)
+
+            keep_rows = ((fracs_by_class[:, force_class] >= lo) & (fracs_by_class[:, force_class] <= hi))
+
+            classes = classes[keep_rows] #type: ignore
+            cumsum_n_components = cumsum_n_components[keep_rows] #type: ignore
+            dirich_fractions = dirich_fractions[keep_rows] #type: ignore
+            filtered_n_components_per_class = filtered_n_components_per_class[keep_rows] #type: ignore
+        else:
+            dirich_fractions = _3_remove_small_fractions(dirich_fractions, mask)
+            filtered_n_components_per_class = reduce_between(mask, cumsum_n_components)
+
+            # if there are classes that're no longer present after the filtering, replace them with `NULL_CLASS_VALUE`
+            classes.masked_fill_(~filtered_n_components_per_class.to(dtype=torch.bool, device=device), NULL_CLASS_VALUE)
         del mask
 
         selected_idxs, spectra_mask = _4_stratified_split(
@@ -144,7 +139,7 @@ def run_simulation(
 
         resulting_real_spectra += _6_add_noise(
             sim_args.noise_covariance,
-            sim_args.n_iters,
+            len(classes),
             real_spectra.shape[1], 
             sim_args.noise_scalar if sim_args.noise_scalar is not None else 1.,
             sim_args.white_noise,
@@ -240,10 +235,11 @@ def _2_generate_dirichlet_distribution(
 
 
 def _3_remove_small_fractions(
-        dirich_fractions: FloatTensor, 
-        mask:             BoolTensor
+        dirich_fractions:    FloatTensor, 
+        mask:                BoolTensor,
         
     ) -> FloatTensor:
+
     # all operations are inplace
     r = (mask.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
     mask[r, dirich_fractions.argmax(dim=1)[r]] = True # guarantees at least 1 class per simulation
