@@ -20,8 +20,7 @@ class SimulationArgs(Struct):
     noise_scalar: Optional[float]
     noise_covariance: Optional[FloatTensor]
     return_fractions: bool
-    glint_scalar_range: Tuple[Optional[float], Optional[float]]
-    water_classes: List[int]
+    class_scalar_ranges: List[Tuple[Optional[float], Optional[float]]]
     class_names: List[str]
     forced_fractions: Dict[str, List[Tuple[float,float]]]
 
@@ -29,6 +28,7 @@ class SimulationArgs(Struct):
         assert len(self.n_components) == self.n_classes, f"Number of classes, {self.n_classes}, must match the number of component sampling ranges, {len(self.n_components)}"
         assert all(len(i) for i in self.n_components), "All classes must have a non-empty value for the `n_components` config"
         assert isinstance(self.forced_fractions, dict), "simulation/forced_fraction_test_set needs to contain key-value pairs"
+        assert len(self.class_scalar_ranges) == self.n_classes, "Need to have a scalar range for every class, even if it is 'None'. SimulationArgs was not properly generated"
 
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
@@ -60,6 +60,9 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         if enabled and dataset_name in sim_config['n_components']
     ]
 
+    scalars = [(sim_config["scalars"] or {}).get(k, ()) for k in list(config['datasets'].keys())]
+    scalars = [(i.get('high', None), i.get('low', None)) if isinstance(i, dict) else i for i in scalars]
+
     class_names = [c for c,v in config['datasets'].items() if v is not None]
     ffracs = sim_config.get("forced_fraction_test_set", {})
 
@@ -76,8 +79,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         noise_scalar = sim_config['noise_scalar'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
         return_fractions = sim_config["return_fractions"],
-        glint_scalar_range = (sim_config["glint_lower_scalar"], sim_config["glint_upper_scalar"]),
-        water_classes = [i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],
+        class_scalar_ranges = scalars,
         class_names = class_names,
         forced_fractions = ffracs,
     )

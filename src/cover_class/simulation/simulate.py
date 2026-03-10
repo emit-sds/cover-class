@@ -22,23 +22,27 @@ from cover_class.simulation.args import SimulationArgs, DataArgs, ForceFracRange
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
 
-def appy_water_scalar(data_args: DataArgs, glint_scalar_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
+def appy_scalars(data_args: DataArgs, scalar_ranges: List[Tuple[Optional[float], Optional[float]]]) -> FloatTensor:
     labels = data_args.real_labels
-    spectra = data_args.real_spectra
+    spectra = data_args.real_spectra.clone()
 
-    lo, hi = glint_scalar_range
-    if lo is None or hi is None or len(water_classes) == 0: 
-        return spectra
-    lo, hi = (hi, lo) if hi < lo else (lo, hi)
+    for c, scalar_range in enumerate(scalar_ranges):
+        if len(scalar_range) == 0:
+            continue
 
-    m = labels[..., None].eq(torch.as_tensor(water_classes, device=labels.device, dtype=labels.dtype)).any(-1)
-    if not m.any(): 
-        return spectra
-    
-    s = lo + (hi - lo) * torch.rand(spectra.size(0), device=spectra.device, dtype=spectra.dtype)
-    X = spectra.clone()
-    X[m] += s[m].unsqueeze(-1)
-    return FloatTensor(X)
+        lo, hi = scalar_range
+        if lo is None or hi is None:
+            continue
+        lo, hi = (hi, lo) if hi < lo else (lo, hi)
+
+        m = labels.eq(c)
+        n = int(m.sum().item())
+        if n == 0:
+            continue
+
+        s = lo + (hi - lo) * torch.rand(n, device=spectra.device, dtype=spectra.dtype,)
+        spectra[m] += s.unsqueeze(-1)
+    return FloatTensor(spectra)
 
 
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
@@ -62,7 +66,7 @@ def run_simulation(
     sim_args.to(device)
     data_args.to(device)
 
-    real_spectra = appy_water_scalar(data_args, sim_args.glint_scalar_range, sim_args.water_classes)
+    real_spectra = appy_scalars(data_args, sim_args.class_scalar_ranges)
 
     with torch.no_grad():
         classes, cumsum_n_components = _0_init_simulation_state(sim_args, device, force_class)
