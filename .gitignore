@@ -12,4 +12,4 @@ dist
 # python 
 __pycache__/
 
-*/wandb/
+**/wandb
