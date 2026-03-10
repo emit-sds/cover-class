@@ -22,23 +22,33 @@ from cover_class.simulation.args import SimulationArgs, DataArgs, ForceFracRange
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
 
-def appy_water_scalar(data_args: DataArgs, glint_scalar_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
-    labels = data_args.real_labels
-    spectra = data_args.real_spectra
-
+def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_scalar_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
     lo, hi = glint_scalar_range
-    if lo is None or hi is None or len(water_classes) == 0: 
+    if (len(water_classes) == 0) or (lo == hi == 0.0):
         return spectra
-    lo, hi = (hi, lo) if hi < lo else (lo, hi)
+    assert lo <= hi, f"glint_scalar_range lower bound ({lo}) must be <= upper bound ({hi})"
 
     m = labels[..., None].eq(torch.as_tensor(water_classes, device=labels.device, dtype=labels.dtype)).any(-1)
     if not m.any(): 
         return spectra
     
     s = lo + (hi - lo) * torch.rand(spectra.size(0), device=spectra.device, dtype=spectra.dtype)
-    X = spectra.clone()
-    X[m] += s[m].unsqueeze(-1)
-    return FloatTensor(X)
+    spectra[m] += s[m].unsqueeze(-1)
+    return spectra
+
+
+def augment_magnitude(spectra: FloatTensor, labels: Tensor, magnitude_range: Tuple[Optional[float], Optional[float]], magnitude_max: Optional[float]) -> FloatTensor:
+    lo, hi = magnitude_range
+    if lo == hi == 1.0:
+        return spectra
+    assert lo <= hi, f"magnitude_range lower bound ({lo}) must be <= upper bound ({hi})"
+
+    s = lo + (hi - lo) * torch.rand(spectra.size(0), device=spectra.device, dtype=spectra.dtype)
+    if magnitude_max is not None:
+        spec_max = spectra.amax(dim=1)
+        s = torch.where(spec_max > 0, s.clamp_max_(magnitude_max / spec_max), s)
+    spectra.mul_(s.unsqueeze(-1))
+    return spectra
 
 
 def force_fractions(dirich_fractions: FloatTensor, force_frac_range: Optional[ForceFracRange], force_class: Optional[int], classes: CharTensor, cumsum_n_components: LongTensor) -> FloatTensor:
@@ -85,7 +95,10 @@ def run_simulation(
     sim_args.to(device)
     data_args.to(device)
 
-    real_spectra = appy_water_scalar(data_args, sim_args.glint_scalar_range, sim_args.water_classes)
+    real_spectra = data_args.real_spectra.clone()
+    real_labels  = data_args.real_labels
+    real_spectra = apply_glint_offset(real_spectra, real_labels, sim_args.glint_scalar_range, sim_args.water_classes)
+    real_spectra = augment_magnitude(real_spectra, real_labels, sim_args.magnitude_range, sim_args.magnitude_max)
 
     with torch.no_grad():
         classes, cumsum_n_components = _0_init_simulation_state(sim_args, device, force_class)

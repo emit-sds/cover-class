@@ -22,6 +22,8 @@ class SimulationArgs(Struct):
     return_fractions: bool
     glint_scalar_range: Tuple[Optional[float], Optional[float]]
     water_classes: List[int]
+    magnitude_range: Tuple[Optional[float], Optional[float]]
+    magnitude_max: Optional[float]
 
     def __post_init__(self):
         assert len(self.n_components) == self.n_classes, f"Number of classes, {self.n_classes}, must match the number of component sampling ranges, {len(self.n_components)}"
@@ -70,8 +72,10 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         noise_scalar = sim_config['noise_scalar'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
         return_fractions=sim_config["return_fractions"],
-        glint_scalar_range=(sim_config["glint_lower_scalar"], sim_config["glint_upper_scalar"]),
+        glint_scalar_range=sim_config["glint_range"],
         water_classes=[i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],
+        magnitude_range=sim_config["magnitude_range"],
+        magnitude_max=sim_config.get("magnitude_max"),
     )
 
     d = DataArgs(

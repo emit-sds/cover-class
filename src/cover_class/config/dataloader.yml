@@ -28,8 +28,9 @@ simulation:
   noise_scalar: 
   noise_covariance_csv: static/spectral_noise_covariances.csv
   return_fractions: false
-  glint_upper_scalar:
-  glint_lower_scalar:
+  glint_range: [0.0, 0.15]
+  magnitude_range: [0.5, 2.0]
+  magnitude_max: 1.5
 subsample:
   test-fraction: 0.2
   selected-method: convex-hull
