@@ -51,7 +51,11 @@ class DataArgs(Struct):
 def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, batch_size:int) -> Tuple[SimulationArgs, DataArgs]:
     config = read_config(config)
     sim_config:dict = config['simulation']
-    n_classes = sum(map(bool, config['datasets'].values()))
+
+    # Determine enabled datasets in a single place to ensure consistent ordering
+    enabled_datasets = [dataset_name for dataset_name, enabled in config['datasets'].items() if enabled]
+    n_classes = len(enabled_datasets)
+
     noise_cov = None
     if sim_config['noise_covariance_csv']:
         assert str(sim_config['noise_covariance_csv']).endswith('csv'), f"Noise covariance file does not end with .csv: {sim_config['noise_covariance_csv']}"
@@ -59,14 +63,15 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
 
     n_components: List[List[int]] = [
         sim_config['n_components'][dataset_name]
-        for dataset_name, enabled in config['datasets'].items()
-        if enabled and dataset_name in sim_config['n_components']
+        for dataset_name in enabled_datasets
+        if dataset_name in sim_config['n_components']
     ]
 
-    class_names = [c for c,v in config['datasets'].items() if v is not None]
+    class_names = enabled_datasets
     ffracs = sim_config.get("forced_fraction_test_set", {})
 
-    scalars = [(sim_config["scalars"] or {}).get(k, ()) for k in list(config['datasets'].keys())]
+    scalars_config = sim_config.get("scalars") or {}
+    scalars = [scalars_config.get(dataset_name, ()) for dataset_name in enabled_datasets]
     scalars = [(i.get('low', None), i.get('high', None)) if isinstance(i, dict) else i for i in scalars]
 
     s = SimulationArgs(
