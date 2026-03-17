@@ -37,7 +37,6 @@ def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_constant_rang
     return spectra
 
 def augment_magnitude(spectra: FloatTensor, labels: Tensor, class_scalar_ranges: List[Tuple[Optional[float], Optional[float]]], magnitude_max: Optional[float]) -> FloatTensor:
-    assert len(class_scalar_ranges) == labels.shape[-1], "The number of class magnitude scalars needs to be equal to the number of classes, even if the scalars are 'None' for that class."
     for i, magnitude_range in enumerate(class_scalar_ranges):
         if magnitude_range is None or len(magnitude_range) == 0:
             continue

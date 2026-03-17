@@ -67,7 +67,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
     ffracs = sim_config.get("forced_fraction_test_set", {})
 
     scalars = [(sim_config["scalars"] or {}).get(k, ()) for k in list(config['datasets'].keys())]
-    scalars = [(i.get('high', None), i.get('low', None)) if isinstance(i, dict) else i for i in scalars]
+    scalars = [(i.get('low', None), i.get('high', None)) if isinstance(i, dict) else i for i in scalars]
 
     s = SimulationArgs(
         n_iters = batch_size,
