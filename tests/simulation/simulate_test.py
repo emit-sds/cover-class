@@ -25,7 +25,7 @@ def new_SimulationArgs() -> SimulationArgs:
         noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
-        glint_scalar_range = [None, None],
+        glint_constant_range = [None, None],
         water_classes = [],
     )
 
@@ -225,7 +225,7 @@ class simulationTest(unittest.TestCase):
                 noise_scalar=None,
                 noise_covariance=None,
                 return_fractions=False,
-                glint_scalar_range = [None, None],
+                glint_constant_range = [None, None],
                 water_classes = [],
             )
 
@@ -333,7 +333,7 @@ class simulationTest(unittest.TestCase):
                 noise_scalar=None,
                 noise_covariance=cov,
                 return_fractions=False,
-                glint_scalar_range = [None, None],
+                glint_constant_range = [None, None],
                 water_classes = [],
             )
             data_args = DataArgs(torch.ones((120,N), dtype=torch.float32), torch.tensor(list(range(10))*12))
