@@ -51,8 +51,17 @@ simulation:
   noise_scalar:         <optional scalar to apply to the CSV noise>
   noise_covariance_csv: <path to the noise covariance csv file [string]>
   return_fractions:     <return the dirichlet fractions from the simulation [boolean]>
-  glint_upper_scalar:   <upper bound for water class glint scalar [float]>
-  glint_lower_scalar:   <lower bound for water class glint scalar [float]>
+  glint_upper_constant:   <upper bound for water class glint scalar [float]>
+  glint_lower_constant:   <lower bound for water class glint scalar [float]>
+  magnitude_max:        <upper bound on the allowed spectra values after the multiplcation operation from `scalars`>
+  scalars:             <randomly generates a scalar between a high and low value to multiply each class by. leave blank to do no multiplication>
+    soil:
+      low: 0.1
+      high: 0.25
+    ...
+  forced_fraction_test_set:
+    soil: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    ...
 subsample:
   test-fraction:   <test data split fraction [float]>
   selected-method: <subsampling method to use [string]>
