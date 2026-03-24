@@ -1,5 +1,5 @@
 
-gfrom typing import Any, List, Dict, Optional, TYPE_CHECKING
+from typing import Any, List, Dict, Optional, TYPE_CHECKING
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
