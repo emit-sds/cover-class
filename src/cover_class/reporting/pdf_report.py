@@ -1,4 +1,5 @@
-from typing import Any, List, Dict, Optional, TYPE_CHECKING
+
+gfrom typing import Any, List, Dict, Optional, TYPE_CHECKING
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -250,7 +251,7 @@ def generate_pdf_report(
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
             ]))
     contents.append(table)
-    contents.append(Spacer(1, 0.5 * inch))
+    contents.append(PageBreak())
     ###############################################
 
 
