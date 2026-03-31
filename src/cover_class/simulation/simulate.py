@@ -146,7 +146,7 @@ def run_simulation(
         )
         del selected_idxs, spectra_mask
 
-        resulting_real_spectra += _6_add_noise(
+        additive_noise = _6_add_noise(
             sim_args.noise_covariance,
             len(classes),
             real_spectra.shape[1], 
@@ -154,6 +154,9 @@ def run_simulation(
             sim_args.white_noise,
             device
         )
+        # Roughly scale noise by spectral albedo, represented by the L2 norm of the spectra
+        resulting_real_spectra += additive_noise * resulting_real_spectra.norm(dim=1, keepdim=True)
+        del additive_noise
 
         if sim_args.return_fractions:
             fracs_by_class = get_fractions_by_class(
