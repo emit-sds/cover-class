@@ -22,9 +22,9 @@ from cover_class.simulation.args import SimulationArgs, DataArgs, ForceFracRange
 ALPHA_MASKOUT_VALUE = torch.tensor(2 ** -126, dtype=torch.float32)
 NULL_CLASS_VALUE = -1
 
-def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_scalar_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
-    lo, hi = glint_scalar_range
-    if (len(water_classes) == 0) or (lo == hi == 0.0):
+def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_constant_range: Tuple[Optional[float], Optional[float]], water_classes: List[int]) -> FloatTensor:
+    lo, hi = glint_constant_range
+    if lo is None or hi is None or (len(water_classes) == 0) or (lo == hi == 0.0): 
         return spectra
     assert lo <= hi, f"glint_scalar_range lower bound ({lo}) must be <= upper bound ({hi})"
 
@@ -36,20 +36,29 @@ def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_scalar_range:
     spectra[m] += s[m].unsqueeze(-1)
     return spectra
 
+def augment_magnitude(spectra: FloatTensor, labels: Tensor, class_scalar_ranges: List[Tuple[Optional[float], Optional[float]]], magnitude_max: Optional[float]) -> FloatTensor:
+    for i, magnitude_range in enumerate(class_scalar_ranges):
+        if magnitude_range is None or len(magnitude_range) == 0:
+            continue
 
-def augment_magnitude(spectra: FloatTensor, labels: Tensor, magnitude_range: Tuple[Optional[float], Optional[float]], magnitude_max: Optional[float]) -> FloatTensor:
-    lo, hi = magnitude_range
-    if lo == hi == 1.0:
-        return spectra
-    assert lo <= hi, f"magnitude_range lower bound ({lo}) must be <= upper bound ({hi})"
+        lo, hi = magnitude_range
+        if lo == hi == 1.0 or lo is None or hi is None:
+            continue
+        lo, hi = (hi, lo) if hi < lo else (lo, hi)
 
-    s = lo + (hi - lo) * torch.rand(spectra.size(0), device=spectra.device, dtype=spectra.dtype)
-    if magnitude_max is not None:
-        spec_max = spectra.amax(dim=1)
-        s = torch.where(spec_max > 0, s.clamp_max_(magnitude_max / spec_max), s)
-    spectra.mul_(s.unsqueeze(-1))
+        m = labels[..., None].eq(i).any(-1)
+        if not m.any():
+            continue
+
+        num = int(m.sum())
+        s = lo + (hi - lo) * torch.rand(num, device=spectra.device, dtype=spectra.dtype)
+
+        if magnitude_max is not None:
+            spec_max = spectra[m].amax(dim=1)
+            s = torch.where(spec_max > 0, torch.minimum(s, magnitude_max / spec_max), s)
+
+        spectra[m] = spectra[m] * s.unsqueeze(-1)
     return spectra
-
 
 def reduce_between(mask: BoolTensor, cumsum_n_components: LongTensor) -> ShortTensor:
     mask_pad = F.pad(mask.to(dtype=torch.int64, device=mask.device).cumsum_(dim=1), (1, 0), value=0) # pad left side with 0
@@ -74,8 +83,8 @@ def run_simulation(
 
     real_spectra = data_args.real_spectra.clone()
     real_labels  = data_args.real_labels
-    real_spectra = apply_glint_offset(real_spectra, real_labels, sim_args.glint_scalar_range, sim_args.water_classes)
-    real_spectra = augment_magnitude(real_spectra, real_labels, sim_args.magnitude_range, sim_args.magnitude_max)
+    real_spectra = apply_glint_offset(real_spectra, real_labels, sim_args.glint_constant_range, sim_args.water_classes) # type: ignore
+    real_spectra = augment_magnitude(real_spectra, real_labels, sim_args.class_scalar_ranges, sim_args.magnitude_max)
 
     with torch.no_grad():
         classes, cumsum_n_components = _0_init_simulation_state(sim_args, device, force_class)

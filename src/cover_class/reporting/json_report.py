@@ -1,6 +1,7 @@
 from typing import Dict, Any, TYPE_CHECKING
 import json
 
+from cover_class.utils import read_config
 if TYPE_CHECKING:
     from cover_class.reporting import Report
 
@@ -25,5 +26,6 @@ def generate_json_report(
             'Hyperparameters':report_config.model_config.hyperparams,
         }
     })
+    out.update({'Config':read_config(report_config.config)})
     with open(json_path, 'w') as f:
         json.dump(out, f, indent=4)

@@ -35,7 +35,7 @@ def new_sim_args() -> Tuple[SimulationArgs, DataArgs]:
         noise_scalar=None,
         noise_covariance = None,
         return_fractions = False,
-        glint_scalar_range = [None, None],
+        glint_constant_range = [None, None],
         water_classes=[],
     ),
     None)

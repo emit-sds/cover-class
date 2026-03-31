@@ -1,3 +1,4 @@
+
 from typing import Any, List, Dict, Optional, TYPE_CHECKING
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -8,6 +9,8 @@ from numpy.typing import NDArray
 import math
 import os
 import warnings
+import json
+from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import LETTER # type: ignore[import]
 from reportlab.lib import colors # type: ignore[import]
@@ -23,6 +26,7 @@ from reportlab.platypus import ( # type: ignore[import]
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle, StyleSheet1 # type: ignore[import]
 from reportlab.lib.units import inch # type: ignore[import]
 
+from cover_class.utils import read_config
 from cover_class.reporting.utils import inference_over_scene, rgb_from_scene
 if TYPE_CHECKING:
     from cover_class.reporting import Report, GenLinePlot
@@ -281,6 +285,16 @@ def generate_pdf_report(
         except Exception as e:
             warnings.warn(f"Failed to do inference over scene: {scene}\nException: {e}")
             continue
+    contents.append(PageBreak())
+    ###############################################
+
+
+    ################# Config json: ################
+    contents.append(Paragraph("Config Json", report_styles["Heading1"]))
+    config_obj = read_config(report_config.config)
+    config_json = json.dumps(config_obj, indent=4, default=str)
+    config_json = escape(config_json).replace("\n", "<br/>").replace("  ", "&nbsp;&nbsp;")
+    contents.append(Paragraph(config_json, report_styles["Code"]))
     contents.append(PageBreak())
     ###############################################
 

@@ -28,9 +28,19 @@ simulation:
   noise_scalar: 
   noise_covariance_csv: static/spectral_noise_covariances.csv
   return_fractions: false
-  glint_range: [0.0, 0.15]
-  magnitude_range: [0.5, 2.0]
+  glint_upper_constant:
+  glint_lower_constant:
   magnitude_max: 1.5
+  scalars:
+    soil:
+      low: 0.1
+      high: 0.25
+    pv:
+      low: 0.3
+      high: 0.5
+    npv:
+      low:
+      high:
   forced_fraction_test_set:
     soil: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
     pv: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
