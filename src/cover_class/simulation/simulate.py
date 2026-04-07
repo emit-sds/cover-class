@@ -154,8 +154,9 @@ def run_simulation(
             sim_args.white_noise,
             device
         )
-        # Roughly scale noise by spectral albedo, represented by the L2 norm of the spectra
-        resulting_real_spectra += additive_noise * resulting_real_spectra.norm(dim=1, keepdim=True)
+        # Roughly scale noise by spectral mean
+        spectral_mean = torch.mean(resulting_real_spectra, dim=1, keepdim=True)
+        resulting_real_spectra += additive_noise * spectral_mean
         del additive_noise
 
         if sim_args.return_fractions:
