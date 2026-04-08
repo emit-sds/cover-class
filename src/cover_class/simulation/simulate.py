@@ -182,7 +182,7 @@ def _0_init_simulation_state(
     assert len(water_class_idx) < 2, "Got more than 1 water class in simation. Unable to handle case."
     water_class = int(water_class_idx[0]) if water_class_idx.size else None
     n_classes = sim_args.n_classes - water_class_idx.size
-    number_of_non_water_samples = int(sim_args.n_iters * ((n_classes - 1) / n_classes)) if water_class_idx.size else sim_args.n_iters
+    number_of_non_water_samples = int(sim_args.n_iters * (n_classes / sim_args.n_classes))
     ###################################
 
     classes = (torch.
@@ -201,7 +201,13 @@ def _0_init_simulation_state(
         water_rows = torch.full((num_water_samples, size[1]), water_class, device=device, dtype=classes.dtype)
         if snow_class_idx.size:
             half = num_water_samples // 2
-            water_rows[:half, torch.randint(size[1], (half,), device=device)] = int(snow_class_idx[0])
+            snow_counts = torch.randint(1, size[1], (half,), device=device)
+            rand_order = torch.rand(half, size[1], device=device).argsort(dim=1)
+            water_rows[:half] = torch.where(
+                rand_order < snow_counts[:, None],
+                torch.full_like(water_rows[:half], int(snow_class_idx[0])),
+                water_rows[:half],
+            )
         classes = torch.cat((classes, water_rows), dim=0)[torch.randperm(sim_args.n_iters, device=device)]
     ###################################
     
