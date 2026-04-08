@@ -179,7 +179,7 @@ def _0_init_simulation_state(
 
     ##### NOTE: TEMPORARY SECTION #####
     water_class_idx = np.where(['water' in i.lower() for i in sim_args.class_names])[0]
-    assert len(water_class_idx) < 2, "Got more than 1 water class in simation. Unable to handle case."
+    assert len(water_class_idx) < 2, "Got more than 1 water class in simulation. Unable to handle case."
     water_class = int(water_class_idx[0]) if water_class_idx.size else None
     n_classes = sim_args.n_classes - water_class_idx.size
     number_of_non_water_samples = int(sim_args.n_iters * (n_classes / sim_args.n_classes))
@@ -195,7 +195,7 @@ def _0_init_simulation_state(
     if water_class is not None:
         classes = classes + (classes >= water_class).to(classes.dtype)
         snow_class_idx = np.where(['snow' in i.lower() for i in sim_args.class_names])[0]
-        assert len(snow_class_idx) < 2, "Got more than 1 snow class in simation. Unable to handle case."
+        assert len(snow_class_idx) < 2, "Got more than 1 snow class in simulation. Unable to handle case."
 
         num_water_samples = int(sim_args.n_iters - number_of_non_water_samples)
         water_rows = torch.full((num_water_samples, size[1]), water_class, device=device, dtype=classes.dtype)
