@@ -9,6 +9,7 @@ from datetime import datetime
 import rich_click as click
 import yaml
 
+import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -73,12 +74,19 @@ class TestDataset(Dataset):
     help="Number of rows to generate for the simulated test set.",
     envvar=f'{ENV_VAR_PREFIX}_SIMULATED_TEST_SET_SIZE'
 )
+@click.option(
+    "--export",
+    is_flag=True,
+    default=False,
+    help="Export y_hat_ood to an HDF5 file in the output directory.",
+)
 def run_report_generator(
         outdir: str,
         data_config: str,
         model_config: str,
         model_weights: str,
-        simulated_test_set_size: int = 100_000
+        simulated_test_set_size: int = 100_000,
+        export: bool = False
     ):
 
     # Load model config
@@ -180,6 +188,12 @@ def run_report_generator(
             batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
             batch_len = len(batch_y_hat)
             y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
+
+    if export:
+        export_path = os.path.join(outdir, "y_hat_ood.h5")
+        print(f"Exporting y_hat_ood to {export_path}...")
+        with h5py.File(export_path, "w") as f:
+            f.create_dataset("y_hat_ood", data=y_hat_ood)
 
     # Fraction simulation
     ff_simulated_test_set_size = 100
