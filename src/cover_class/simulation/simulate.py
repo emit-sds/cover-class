@@ -178,12 +178,40 @@ def _0_init_simulation_state(
     
     size = (sim_args.n_iters, sim_args.n_classes_in_subsets)
 
+    ##### NOTE: TEMPORARY SECTION #####
+    water_class_idx = np.where(['water' in i.lower() for i in sim_args.class_names])[0]
+    assert len(water_class_idx) < 2, "Got more than 1 water class in simulation. Unable to handle case."
+    water_class = int(water_class_idx[0]) if water_class_idx.size else None
+    n_classes = sim_args.n_classes - water_class_idx.size
+    number_of_non_water_samples = int(sim_args.n_iters * (n_classes / sim_args.n_classes))
+    ###################################
+
     classes = (torch.
-        rand(sim_args.n_iters, sim_args.n_classes, device=device).
+        rand(number_of_non_water_samples, n_classes, device=device).
         topk(size[1], dim=1, largest=False).
         indices.to(dtype=torch.int8)
     )
 
+    ##### NOTE: TEMPORARY SECTION #####
+    if water_class is not None:
+        classes = classes + (classes >= water_class).to(classes.dtype)
+        snow_class_idx = np.where(['snow' in i.lower() for i in sim_args.class_names])[0]
+        assert len(snow_class_idx) < 2, "Got more than 1 snow class in simulation. Unable to handle case."
+
+        num_water_samples = int(sim_args.n_iters - number_of_non_water_samples)
+        water_rows = torch.full((num_water_samples, size[1]), water_class, device=device, dtype=classes.dtype)
+        if snow_class_idx.size:
+            half = num_water_samples // 2
+            snow_counts = torch.randint(1, size[1], (half,), device=device)
+            rand_order = torch.rand(half, size[1], device=device).argsort(dim=1)
+            water_rows[:half] = torch.where(
+                rand_order < snow_counts[:, None],
+                torch.full_like(water_rows[:half], int(snow_class_idx[0])),
+                water_rows[:half],
+            )
+        classes = torch.cat((classes, water_rows), dim=0)[torch.randperm(sim_args.n_iters, device=device)]
+    ###################################
+    
     classes_cpu = classes.to(dtype=torch.int64).cpu().numpy()
     n_components_numpy: npt.NDArray[np.int32] = np.zeros(size, dtype=np.int32)
     for c in np.unique(classes_cpu):
