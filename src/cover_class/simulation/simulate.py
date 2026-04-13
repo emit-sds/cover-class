@@ -26,7 +26,7 @@ def apply_glint_offset(spectra: FloatTensor, labels: Tensor, glint_constant_rang
     lo, hi = glint_constant_range
     if lo is None or hi is None or (len(water_classes) == 0) or (lo == hi == 0.0): 
         return spectra
-    lo, hi = (hi, lo) if hi < lo else (lo, hi)
+    assert lo <= hi, f"glint_scalar_range lower bound ({lo}) must be <= upper bound ({hi})"
 
     m = labels[..., None].eq(torch.as_tensor(water_classes, device=labels.device, dtype=labels.dtype)).any(-1)
     if not m.any(): 
@@ -147,6 +147,7 @@ def run_simulation(
         del selected_idxs, spectra_mask
 
         resulting_real_spectra += _6_add_noise(
+            resulting_real_spectra,
             sim_args.noise_covariance,
             len(classes),
             real_spectra.shape[1], 
@@ -377,6 +378,7 @@ def _5_make_sim_spectra(
 
 
 def _6_add_noise(
+        spectra:           FloatTensor,
         sim_args_noise:    Optional[torch.FloatTensor],
         n_iters:           int,
         wavelength_dim:    int,
@@ -398,6 +400,10 @@ def _6_add_noise(
         
     else:
         noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device) * noise_scalar
+
+    # Roughly scale noise by spectral mean
+    spectral_mean = torch.mean(spectra, dim=1, keepdim=True)
+    noise = noise * spectral_mean
 
     return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 
