@@ -146,7 +146,8 @@ def run_simulation(
         )
         del selected_idxs, spectra_mask
 
-        additive_noise = _6_add_noise(
+        resulting_real_spectra += _6_add_noise(
+            resulting_real_spectra,
             sim_args.noise_covariance,
             len(classes),
             real_spectra.shape[1], 
@@ -154,10 +155,6 @@ def run_simulation(
             sim_args.white_noise,
             device
         )
-        # Roughly scale noise by spectral mean
-        spectral_mean = torch.mean(resulting_real_spectra, dim=1, keepdim=True)
-        resulting_real_spectra += additive_noise * spectral_mean
-        del additive_noise
 
         if sim_args.return_fractions:
             fracs_by_class = get_fractions_by_class(
@@ -353,6 +350,7 @@ def _5_make_sim_spectra(
 
 
 def _6_add_noise(
+        spectra:           FloatTensor,
         sim_args_noise:    Optional[torch.FloatTensor],
         n_iters:           int,
         wavelength_dim:    int,
@@ -374,6 +372,10 @@ def _6_add_noise(
         
     else:
         noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device) * noise_scalar
+
+    # Roughly scale noise by spectral mean
+    spectral_mean = torch.mean(spectra, dim=1, keepdim=True)
+    noise = noise * spectral_mean
 
     return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 
