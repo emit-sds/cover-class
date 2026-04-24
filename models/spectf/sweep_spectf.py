@@ -325,9 +325,6 @@ def run_pipeline_classifier(
             "loss_ood_epoch": avg_ood_loss
         })
 
-    # Generate report at end of training
-    #report.make_report(y_hat, None, y_hat_ood)
-
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
     run_pipeline_classifier()

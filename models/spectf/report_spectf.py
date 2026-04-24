@@ -80,13 +80,20 @@ class TestDataset(Dataset):
     default=False,
     help="Export y_hat_ood to an HDF5 file in the output directory.",
 )
+@click.option(
+    "--overfit-ood",
+    is_flag=True,
+    default=False,
+    help="Calculate the OOD metrics using the best threshold, not the simulated test threshold"
+)
 def run_report_generator(
         outdir: str,
         data_config: str,
         model_config: str,
         model_weights: str,
         simulated_test_set_size: int = 100_000,
-        export: bool = False
+        export: bool = False,
+        overfit_ood: bool = False
     ):
 
     # Load model config
@@ -208,7 +215,7 @@ def run_report_generator(
         report.append_fractional_simulation_result(fs, frac_sim_y_hat)
 
     # Generate report
-    report.make_report(y_hat, None, y_hat_ood)
+    report.make_report(y_hat, y_hat_ood, None, overfit_ood)
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter

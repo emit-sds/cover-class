@@ -259,7 +259,7 @@ def run_pipeline_classifier(
         })
 
     # Generate report at end of training
-    report.make_report(y_hat, None, y_hat_ood)
+    report.make_report(y_hat, y_hat_ood, None, overfit_ood=False)
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
