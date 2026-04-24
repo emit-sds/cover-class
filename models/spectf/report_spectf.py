@@ -178,7 +178,7 @@ def run_report_generator(
 
     # OOD loop
     print("Evaluating on OOD validation set...")
-    y_hat_ood = np.zeros_like(ood_test_set_y, dtype=float)
+    y_hat_ood = np.zeros_like(ood_test_set_y, dtype=np.float32)
     for i, (batch_X, _) in enumerate(ood_dataloader):
         batch_X = batch_X.to(device=device, dtype=torch.float32)
         batch_X = torch.unsqueeze(batch_X, -1)
@@ -193,7 +193,7 @@ def run_report_generator(
         export_path = os.path.join(outdir, "y_hat_ood.h5")
         print(f"Exporting y_hat_ood to {export_path}...")
         with h5py.File(export_path, "w") as f:
-            f.create_dataset("y_hat_ood", data=y_hat_ood)
+            f.create_dataset("{timestamp}_y_hat_ood", data=y_hat_ood)
 
     # Fraction simulation
     ff_simulated_test_set_size = 100
