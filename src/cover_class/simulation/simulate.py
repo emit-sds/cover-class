@@ -293,7 +293,7 @@ def _4_stratified_split(
 
         # (N_classes, N_labels) -> (N_iters, N_classes_per_sim, N_labels)
         # Note: So if the `NULL_CLASS_VALUE` is -1, then the mask will be `True` for where `labels` is the highest class value.
-        #   This gets mitigated, though, downstream by the `filtered_n_components_per_class` fitlering `selection_mask` to be 0 for those `NULL_CLASS_VALUE` classes
+        #   This gets mitigated, though, downstream by the `filtered_n_components_per_class` filtering `selection_mask` to be 0 for those `NULL_CLASS_VALUE` classes
         is_class = is_class[classes.to(dtype=torch.long, device=device)]
         del unique_classes
 
