@@ -147,7 +147,7 @@ def run_simulation(
         del selected_idxs, spectra_mask
 
         resulting_real_spectra += _6_add_noise(
-            resulting_real_spectra,
+            resulting_real_spectra, #type: ignore
             sim_args.noise_covariance,
             len(classes),
             real_spectra.shape[1], 
@@ -176,45 +176,27 @@ def _0_init_simulation_state(
         LongTensor  # cumsum_n_components
     ]:
     
-    size = (sim_args.n_iters, sim_args.n_classes_in_subsets)
-
-    ##### NOTE: TEMPORARY SECTION #####
-    water_class_idx = np.where(['water' in i.lower() for i in sim_args.class_names])[0]
-    assert len(water_class_idx) < 2, "Got more than 1 water class in simulation. Unable to handle case."
-    water_class = int(water_class_idx[0]) if water_class_idx.size else None
-    n_classes = sim_args.n_classes - water_class_idx.size
-    number_of_non_water_samples = int(sim_args.n_iters * (n_classes / sim_args.n_classes))
-    ###################################
-
-    classes = (torch.
-        rand(number_of_non_water_samples, n_classes, device=device).
-        topk(size[1], dim=1, largest=False).
-        indices.to(dtype=torch.int8)
+    selections = torch.multinomial(
+        sim_args.sim_mixture_probs, 
+        num_samples=sim_args.n_iters, 
+        replacement=True
     )
+    classes = sim_args.sim_mixture_probs_matrix[selections]
+    # Convert multi-hot rows like [0,1,0,1,1] -> class-id rows like [1,3,4,-1]
+    max_active = int(classes.bool().sum(dim=1).max().item())
 
-    ##### NOTE: TEMPORARY SECTION #####
-    if water_class is not None:
-        classes = classes + (classes >= water_class).to(classes.dtype)
-        snow_class_idx = np.where(['snow' in i.lower() for i in sim_args.class_names])[0]
-        assert len(snow_class_idx) < 2, "Got more than 1 snow class in simulation. Unable to handle case."
+    class_ids = torch.arange(classes.size(1), device=classes.device).expand_as(classes)
+    classes = torch.where(classes.bool(), class_ids, classes.size(1))
+    classes = classes.sort(dim=1).values[:, :max_active]
+    classes = classes.masked_fill(classes == sim_args.n_classes, NULL_CLASS_VALUE)
 
-        num_water_samples = int(sim_args.n_iters - number_of_non_water_samples)
-        water_rows = torch.full((num_water_samples, size[1]), water_class, device=device, dtype=classes.dtype)
-        if snow_class_idx.size:
-            half = num_water_samples // 2
-            snow_counts = torch.randint(1, size[1], (half,), device=device)
-            rand_order = torch.rand(half, size[1], device=device).argsort(dim=1)
-            water_rows[:half] = torch.where(
-                rand_order < snow_counts[:, None],
-                torch.full_like(water_rows[:half], int(snow_class_idx[0])),
-                water_rows[:half],
-            )
-        classes = torch.cat((classes, water_rows), dim=0)[torch.randperm(sim_args.n_iters, device=device)]
-    ###################################
+    size = classes.shape
     
     classes_cpu = classes.to(dtype=torch.int64).cpu().numpy()
     n_components_numpy: npt.NDArray[np.int32] = np.zeros(size, dtype=np.int32)
     for c in np.unique(classes_cpu):
+        if c == NULL_CLASS_VALUE:
+            continue
         mask = (classes_cpu == c)
         vals = np.asarray(sim_args.n_components[c], dtype=np.int32)
         n_components_numpy[mask] = np.random.choice(vals, mask.sum(), replace=True)
@@ -309,6 +291,8 @@ def _4_stratified_split(
         assert (is_class.sum(dim=1) >= n_components_max).all(), f"All classes must have more than {n_components_max} labels"
 
         # (N_classes, N_labels) -> (N_iters, N_classes_per_sim, N_labels)
+        # Note: So if the `NULL_CLASS_VALUE` is -1, then the mask will be `True` for where `labels` is the highest class value.
+        #   This gets mitigated, though, downstream by the `filtered_n_components_per_class` filtering `selection_mask` to be 0 for those `NULL_CLASS_VALUE` classes
         is_class = is_class[classes.to(dtype=torch.long, device=device)]
         del unique_classes
 
