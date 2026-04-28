@@ -92,9 +92,11 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
     ## create the sim_mixture_probs matrix
     df = pd.read_csv(sim_config['sim_mixture_probs_csv'])
     assert len(set(enabled_datasets) - set(df.columns.values)) == 0, f"Missing the following fields from the `sim_mixture_probs_csv`: {set(enabled_datasets) - set(df.columns.values)}"
+    # NOTE: IF A COLUMN CONTAINS A 1 AND WE'RE DROPPING THE COLUMN, WE NEED TO REMOVE THE ROW...
+    drop_cols = [c for c in df.columns if c not in enabled_datasets and c.lower() not in {"metric weight", "probability"}]
+    df = df[(df[drop_cols] != 1).all(axis=1)]
     sim_mixture_probs_matrix = torch.tensor(df[enabled_datasets].values, dtype=torch.float32)
     sim_mixture_probs = torch.tensor(df['Probability'].values, dtype=torch.float32)
-    # NOTE: IF A COLUMN CONTAINS A 1 AND WE'RE DROPPING THE COLUMN, WE NEED TO REMOVE THE ROW...
 
     s = SimulationArgs(
         n_iters = batch_size,
