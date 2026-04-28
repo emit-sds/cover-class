@@ -51,6 +51,8 @@ class SimulationArgs(Struct):
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
             self.noise_covariance = self.noise_covariance.to(device) # type: ignore
+        self.sim_mixture_probs_matrix = self.sim_mixture_probs_matrix.to(device)
+        self.sim_mixture_probs = self.sim_mixture_probs.to(device)
 
 class DataArgs(Struct):
     real_spectra: FloatTensor
