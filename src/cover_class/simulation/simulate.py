@@ -182,7 +182,6 @@ def _0_init_simulation_state(
         replacement=True
     )
     classes = sim_args.sim_mixture_probs_matrix[selections]
-    # Convert multi-hot rows like [0,1,0,1,1] -> class-id rows like [1,3,4]
     # Convert multi-hot rows like [0,1,0,1,1] -> class-id rows like [1,3,4,-1]
     max_active = int(classes.bool().sum(dim=1).max().item())
 
