@@ -70,15 +70,81 @@ class TestDataset(Dataset):
     help="Number of rows to generate for the simulated test set.",
     envvar=f'{ENV_VAR_PREFIX}_SIMULATED_TEST_SET_SIZE'
 )
+@click.option(
+    "--dim-output",
+    type=int,
+    help="Model output dimension.",
+)
+@click.option(
+    "--num-heads",
+    type=int,
+    help="Number of attention heads.",
+)
+@click.option(
+    "--dim-proj",
+    type=int,
+    help="Projection dimension.",
+)
+@click.option(
+    "--dim-ff",
+    type=int,
+    help="Feed-forward dimension.",
+)
+@click.option(
+    "--dropout",
+    type=float,
+    help="Dropout rate.",
+)
+@click.option(
+    "--agg",
+    type=str,
+    help="Aggregation method.",
+)
+@click.option(
+    "--use-residual",
+    type=bool,
+    help="Use residual connections.",
+)
+@click.option(
+    "--num-layers",
+    type=int,
+    help="Number of layers.",
+)
 def run_pipeline_classifier(
         outdir: str,
         data_config: str,
         model_config: str,
-        simulated_test_set_size: int = 100_000
+        simulated_test_set_size: int = 100_000,
+        dim_output: int = None,
+        num_heads: int = None,
+        dim_proj: int = None,
+        dim_ff: int = None,
+        dropout: float = None,
+        agg: str = None,
+        use_residual: bool = None,
+        num_layers: int = None
     ):
 
     with open(model_config, 'r', encoding='utf-8') as f:
         m_config = yaml.safe_load(f)
+
+    # Override model hyperparameters if provided via CLI
+    if dim_output is not None:
+        m_config['model']['dim_output'] = dim_output
+    if num_heads is not None:
+        m_config['model']['num_heads'] = num_heads
+    if dim_proj is not None:
+        m_config['model']['dim_proj'] = dim_proj
+    if dim_ff is not None:
+        m_config['model']['dim_ff'] = dim_ff
+    if dropout is not None:
+        m_config['model']['dropout'] = dropout
+    if agg is not None:
+        m_config['model']['agg'] = agg
+    if use_residual is not None:
+        m_config['model']['use_residual'] = use_residual
+    if num_layers is not None:
+        m_config['model']['num_layers'] = num_layers
 
     dataloader, test_X, test_Y = setup_training_from_config(
         data_config,
@@ -253,13 +319,11 @@ def run_pipeline_classifier(
         run.log({
             "test_metrics": test_metrics,
             "ood_metrics": ood_metrics,
+            "mean_ood_auc": np.mean([ood_metrics[c]['ROC-AUC'] for c in class_names]),
             "epoch": epoch,
             "loss_test_epoch": avg_test_loss,
             "loss_ood_epoch": avg_ood_loss
         })
-
-    # Generate report at end of training
-    report.make_report(y_hat, y_hat_ood, None, ood_overfit=False)
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
