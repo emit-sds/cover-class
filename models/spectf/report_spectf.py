@@ -81,7 +81,7 @@ class TestDataset(Dataset):
     help="Export y_hat_ood to an HDF5 file in the output directory.",
 )
 @click.option(
-    "--overfit-ood",
+    "--ood-overfit",
     is_flag=True,
     default=False,
     help="Calculate the OOD metrics using the best threshold, not the simulated test threshold"
@@ -93,7 +93,7 @@ def run_report_generator(
         model_weights: str,
         simulated_test_set_size: int = 100_000,
         export: bool = False,
-        overfit_ood: bool = False
+        ood_overfit: bool = False
     ):
 
     # Load model config
@@ -219,7 +219,7 @@ def run_report_generator(
         y_hat,
         y_hat_ood_test=y_hat_ood,
         class_thresholds=None,
-        ood_overfit=overfit_ood,
+        ood_overfit=ood_overfit,
     )
 
 if __name__ == "__main__":
