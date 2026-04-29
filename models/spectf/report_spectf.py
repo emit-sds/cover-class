@@ -157,7 +157,7 @@ def run_report_generator(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": "ScheduleFreeAdamW",
+                "optimizer": "AdamWScheduleFree",
                 "params": m_config['model']
             },
         ),
