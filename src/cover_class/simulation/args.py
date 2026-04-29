@@ -4,6 +4,7 @@ import numpy as np
 from torch import FloatTensor, Tensor
 import torch
 from dataclasses import dataclass
+import pandas as pd #type: ignore
 
 from cover_class.utils import read_config
 
@@ -19,6 +20,8 @@ class SimulationArgs(Struct):
     white_noise: float
     noise_scalar: Optional[float]
     noise_covariance: Optional[FloatTensor]
+    sim_mixture_probs_matrix: Tensor
+    sim_mixture_probs: Tensor
     return_fractions: bool
     glint_constant_range: Tuple[Optional[float], Optional[float]]
     water_classes: List[int]
@@ -33,9 +36,23 @@ class SimulationArgs(Struct):
         assert isinstance(self.forced_fractions, dict), "simulation/forced_fraction_test_set needs to contain key-value pairs"
         assert len(self.class_scalar_ranges) == self.n_classes, "Need to have a scalar range for every class, even if it is 'None'. SimulationArgs was not properly generated"
 
+        ## Fix the Simulation Matrix Prob matrix now that we know what classes to keep or exclude.
+        keep = (
+            self.sim_mixture_probs_matrix.to(dtype=torch.bool).any(dim=1)
+            & (self.sim_mixture_probs != 0)
+        )
+
+        self.sim_mixture_probs_matrix = self.sim_mixture_probs_matrix[keep]
+        self.sim_mixture_probs = self.sim_mixture_probs[keep]
+
+        assert self.sim_mixture_probs.sum() > 0, "At least one simulation mixture must be non-empty and have non-zero probability"
+        self.sim_mixture_probs = self.sim_mixture_probs / self.sim_mixture_probs.sum()
+
     def to(self, device: torch.device):
         if self.noise_covariance is not None: 
             self.noise_covariance = self.noise_covariance.to(device) # type: ignore
+        self.sim_mixture_probs_matrix = self.sim_mixture_probs_matrix.to(device)
+        self.sim_mixture_probs = self.sim_mixture_probs.to(device)
 
 class DataArgs(Struct):
     real_spectra: FloatTensor
@@ -74,6 +91,15 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
     scalars = [scalars_config.get(dataset_name, ()) for dataset_name in enabled_datasets]
     scalars = [(i.get('low', None), i.get('high', None)) if isinstance(i, dict) else i for i in scalars]
 
+    ## create the sim_mixture_probs matrix
+    df = pd.read_csv(sim_config['sim_mixture_probs_csv'])
+    assert len(set(enabled_datasets) - set(df.columns.values)) == 0, f"Missing the following fields from the `sim_mixture_probs_csv`: {set(enabled_datasets) - set(df.columns.values)}"
+    # NOTE: IF A COLUMN CONTAINS A 1 AND WE'RE DROPPING THE COLUMN, WE NEED TO REMOVE THE ROW...
+    drop_cols = [c for c in df.columns if c not in enabled_datasets and c.lower() not in {"metric weight", "probability"}]
+    df = df[(df[drop_cols] != 1).all(axis=1)]
+    sim_mixture_probs_matrix = torch.tensor(df[enabled_datasets].values, dtype=torch.float32)
+    sim_mixture_probs = torch.tensor(df['Probability'].values, dtype=torch.float32)
+
     s = SimulationArgs(
         n_iters = batch_size,
         n_classes = n_classes,
@@ -86,6 +112,8 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         white_noise = sim_config['white_noise'],
         noise_scalar = sim_config['noise_scalar'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
+        sim_mixture_probs_matrix = sim_mixture_probs_matrix,
+        sim_mixture_probs = sim_mixture_probs,
         return_fractions = sim_config["return_fractions"],
         glint_constant_range = (sim_config["glint_lower_constant"], sim_config["glint_upper_constant"]),
         water_classes = [i for i in range(len(config['datasets'])) if 'water' in list(config['datasets'].keys())[i].lower()],

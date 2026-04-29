@@ -27,6 +27,7 @@ simulation:
   white_noise: 0.0001
   noise_scalar: 
   noise_covariance_csv: static/spectral_noise_covariances.csv
+  sim_mixture_probs_csv: config/sim-mixture-probs.csv
   return_fractions: false
   glint_upper_constant:
   glint_lower_constant:
