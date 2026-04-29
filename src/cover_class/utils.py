@@ -36,17 +36,37 @@ def load_rfl(hdr_fp:str) -> Tuple[np.ndarray, np.ndarray]:
     return rfl, banddef # type: ignore 
 
 def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_missed_class: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Load the OOD test set from a configuration file.
+
+    Args:
+        c: Config file path or a dictionary containing 'datasets' and 'ood-test-set'.
+        include_unknown: If True, samples with label 2 (unknown) are included and treated as present.
+                        If False, any sample with a label 2 is discarded from the dataset.
+        err_on_missed_class: If True, raises a RuntimeError if a class specified in the config is missing from the OOD set.
+
+    Returns:
+        A tuple containing:
+            - X: A torch.Tensor of spectra.
+            - Y: A torch.Tensor of multi-hot labels for the classes in class_order.
+    """
     config = read_config(c)
     class_order: List[str] = [d for d in config['datasets'].keys() if config['datasets'][d] is not None]
 
     with h5py.File(config['ood-test-set'], 'r') as f:
-        labels  = np.asarray(f['labels'][:])
+        labels = np.asarray(f['labels'][:])
+        spectra = np.asarray(f['spectra'][:])
         classes = np.asarray(f.attrs['classes'][:]).astype(str) # type: ignore
 
-        present = (labels != 0) if include_unknown else (labels != 0) & (labels != 2)
+        if not include_unknown:
+            mask = ~np.any(labels == 2, axis=1)
+            labels = labels[mask]
+            spectra = spectra[mask]
+
+        present = (labels != 0)
         idx = {c: j for j, c in enumerate(classes)}
 
-        X = torch.from_numpy(f['spectra'][:]).to(torch.float32)
+        X = torch.from_numpy(spectra).to(torch.float32)
         Y = np.zeros((labels.shape[0], len(class_order)), dtype=np.uint8)
         for i, name in enumerate(class_order):
             Y[:, i] = present[:, idx[name]].astype(np.uint8)
