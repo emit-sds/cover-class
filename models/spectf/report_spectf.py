@@ -56,7 +56,7 @@ class TestDataset(Dataset):
     "--model-config",
     required=True,
     type=click.Path(exists=True, dir_okay=False),
-    help="Path to the YAML config for the model.",
+    help="Path to the YAML config for the model architecture.",
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(
@@ -157,7 +157,7 @@ def run_report_generator(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": "AdamW",
+                "optimizer": "ScheduleFreeAdamW",
                 "params": m_config['model']
             },
         ),
