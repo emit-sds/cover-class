@@ -68,7 +68,7 @@ class RasterDataset(Dataset):
     "--model-config",
     required=True,
     type=click.Path(exists=True, dir_okay=False),
-    help="Path to the YAML config for the model.",
+    help="Path to the YAML config for the model architecture.",
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(

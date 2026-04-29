@@ -153,6 +153,7 @@ def run_simulation(
             real_spectra.shape[1], 
             sim_args.noise_scalar if sim_args.noise_scalar is not None else 1.,
             sim_args.white_noise,
+            sim_args.noise_brightness_scaling,
             device
         )
 
@@ -368,6 +369,7 @@ def _6_add_noise(
         wavelength_dim:    int,
         noise_scalar:      float,
         white_noise_scale: float,
+        noise_brightness_scaling: bool,
         device:            Device
 
     ) -> FloatTensor:
@@ -386,8 +388,9 @@ def _6_add_noise(
         noise = torch.zeros(n_iters, wavelength_dim, dtype=torch.float32, device=device) * noise_scalar
 
     # Roughly scale noise by spectral mean
-    spectral_mean = torch.mean(spectra, dim=1, keepdim=True)
-    noise = noise * spectral_mean
+    if noise_brightness_scaling:
+        spectral_mean = torch.mean(spectra, dim=1, keepdim=True)
+        noise = noise * spectral_mean
 
     return noise.to(dtype=torch.float32)  # type: ignore[return-value]
 

@@ -56,7 +56,7 @@ class TestDataset(Dataset):
     "--model-config",
     required=True,
     type=click.Path(exists=True, dir_okay=False),
-    help="Path to the YAML config for the model.",
+    help="Path to the YAML config for the model architecture.",
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(
@@ -157,7 +157,7 @@ def run_report_generator(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": "AdamW",
+                "optimizer": "AdamWScheduleFree",
                 "params": m_config['model']
             },
         ),
@@ -197,10 +197,10 @@ def run_report_generator(
             y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
 
     if export:
-        export_path = os.path.join(outdir, "y_hat_ood.h5")
+        export_path = os.path.join(outdir, f"{timestamp}_y_hat_ood.h5")
         print(f"Exporting y_hat_ood to {export_path}...")
         with h5py.File(export_path, "w") as f:
-            f.create_dataset(f"{timestamp}_y_hat_ood", data=y_hat_ood.astype(np.float32))
+            f.create_dataset("y_hat_ood", data=y_hat_ood.astype(np.float32))
 
     # Fraction simulation
     ff_simulated_test_set_size = 100
