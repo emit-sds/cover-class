@@ -25,6 +25,7 @@ simulation:
   alpha_uniform_low: 0.1
   alpha_uniform_high: 10.
   white_noise: 0.0001
+  noise_brightness_scaling: true
   noise_scalar: 
   noise_covariance_csv: static/spectral_noise_covariances.csv
   sim_mixture_probs_csv: config/sim-mixture-probs.csv

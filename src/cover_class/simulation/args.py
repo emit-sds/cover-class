@@ -18,6 +18,7 @@ class SimulationArgs(Struct):
     alpha_uniform_low: float
     alpha_uniform_high: float
     white_noise: float
+    noise_brightness_scaling: bool
     noise_scalar: Optional[float]
     noise_covariance: Optional[FloatTensor]
     sim_mixture_probs_matrix: Tensor
@@ -110,6 +111,7 @@ def args_from_config(config: Dict|str, data_matrix:FloatTensor, labels:Tensor, b
         alpha_uniform_low = sim_config['alpha_uniform_low'],
         alpha_uniform_high = sim_config['alpha_uniform_high'],
         white_noise = sim_config['white_noise'],
+        noise_brightness_scaling = sim_config['noise_brightness_scaling'],
         noise_scalar = sim_config['noise_scalar'],
         noise_covariance = FloatTensor(torch.from_numpy(noise_cov).to(torch.float32)) if noise_cov is not None else None,
         sim_mixture_probs_matrix = sim_mixture_probs_matrix,
