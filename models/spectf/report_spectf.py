@@ -215,7 +215,12 @@ def run_report_generator(
         report.append_fractional_simulation_result(fs, frac_sim_y_hat)
 
     # Generate report
-    report.make_report(y_hat, y_hat_ood, None, overfit_ood)
+    report.make_report(
+        y_hat,
+        y_hat_ood_test=y_hat_ood,
+        class_thresholds=None,
+        ood_overfit=overfit_ood,
+    )
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
