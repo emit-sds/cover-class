@@ -144,7 +144,7 @@ def run_pipeline_classifier(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": optimizer.__name__,
+                "optimizer": optimizer.__class__.__name__,
                 "params": m_config['model']
             },
         ),
