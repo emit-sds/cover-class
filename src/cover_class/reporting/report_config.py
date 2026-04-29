@@ -114,7 +114,7 @@ class Report:
         if class_thresholds is None:
             class_thresholds = f1_opt_thr(y_hat, self.Y_test)
 
-        if ood_overfit:
+        if ood_overfit and y_hat_ood_test is not None:
             class_thresholds_ood = f1_opt_thr(y_hat_ood_test, self.Y_ood_test)
         else:
             class_thresholds_ood = class_thresholds
