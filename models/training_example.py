@@ -223,7 +223,12 @@ def run_pipeline_classifier(
         y_hat_ood = torch.sigmoid(model(ood_test_set_x.to(device)))
         y_hat_ood = y_hat_ood.detach().cpu()
     thresholds = [0.5] * y_hat.shape[-1]
-    report.make_report(y_hat, y_hat_ood, thresholds, ood_overfit=False)
+    report.make_report(
+        y_hat_test=y_hat,
+        y_hat_ood_test=y_hat_ood,
+        class_thresholds=thresholds,
+        ood_overfit=False,
+    )
 
 
 if __name__ == "__main__": 
