@@ -102,7 +102,10 @@ class Report:
         
         self.y_hat = np.zeros_like(self.Y_test)
 
-    def make_report(self, y_hat: Union[Tensor, NDArray], class_thresholds: Optional[List[float]], y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None):
+    def make_report(self, y_hat: Union[Tensor, NDArray],
+                    y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None,
+                    class_thresholds: Optional[List[float]] = None, 
+                    ood_overfit: bool = False):
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
@@ -111,6 +114,11 @@ class Report:
         if class_thresholds is None:
             class_thresholds = f1_opt_thr(y_hat, self.Y_test)
 
+        if ood_overfit and y_hat_ood_test is not None:
+            class_thresholds_ood = f1_opt_thr(y_hat_ood_test, self.Y_ood_test)
+        else:
+            class_thresholds_ood = class_thresholds
+
         if self.test_metric_table is None:
             self.test_metric_table = {}
         if self.ood_test_metric_table is None:
@@ -118,7 +126,7 @@ class Report:
         self.test_metric_table.update(self.generate_metrics(self.Y_test, y_hat, class_thresholds, self.test_figures, class_names))
         if y_hat_ood_test is not None:
             assert self.Y_ood_test is not None, "Got probabilities for OOD Test set, but no labels were provided"
-            self.ood_test_metric_table.update(self.generate_metrics(self.Y_ood_test, y_hat_ood_test, class_thresholds, self.ood_test_figures, class_names))
+            self.ood_test_metric_table.update(self.generate_metrics(self.Y_ood_test, y_hat_ood_test, class_thresholds_ood, self.ood_test_figures, class_names))
 
         # Get the metrics for the fractional simulation results
         self._fractional_simulation_test_dict['TPR'] = {}

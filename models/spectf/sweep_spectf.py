@@ -59,7 +59,7 @@ class TestDataset(Dataset):
     "--model-config",
     required=True,
     type=click.Path(exists=True, dir_okay=False),
-    help="Path to the YAML config for the dataloader.",
+    help="Path to the YAML config for the model architecture.",
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(
@@ -210,7 +210,7 @@ def run_pipeline_classifier(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": optim.AdamW.__name__,
+                "optimizer": optimizer.__class__.__name__,
                 "params": m_config['model']
             },
         ),
@@ -324,9 +324,6 @@ def run_pipeline_classifier(
             "loss_test_epoch": avg_test_loss,
             "loss_ood_epoch": avg_ood_loss
         })
-
-    # Generate report at end of training
-    #report.make_report(y_hat, None, y_hat_ood)
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter

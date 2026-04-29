@@ -56,7 +56,7 @@ class TestDataset(Dataset):
     "--model-config",
     required=True,
     type=click.Path(exists=True, dir_okay=False),
-    help="Path to the YAML config for the model.",
+    help="Path to the YAML config for the model architecture.",
     envvar=f'{ENV_VAR_PREFIX}_MODEL_CONFIG'
 )
 @click.option(
@@ -80,13 +80,20 @@ class TestDataset(Dataset):
     default=False,
     help="Export y_hat_ood to an HDF5 file in the output directory.",
 )
+@click.option(
+    "--ood-overfit",
+    is_flag=True,
+    default=False,
+    help="Calculate the OOD metrics using the best threshold, not the simulated test threshold"
+)
 def run_report_generator(
         outdir: str,
         data_config: str,
         model_config: str,
         model_weights: str,
         simulated_test_set_size: int = 100_000,
-        export: bool = False
+        export: bool = False,
+        ood_overfit: bool = False
     ):
 
     # Load model config
@@ -150,7 +157,7 @@ def run_report_generator(
             hyperparams={
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
-                "optimizer": "AdamW",
+                "optimizer": "AdamWScheduleFree",
                 "params": m_config['model']
             },
         ),
@@ -190,10 +197,10 @@ def run_report_generator(
             y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
 
     if export:
-        export_path = os.path.join(outdir, "y_hat_ood.h5")
+        export_path = os.path.join(outdir, f"{timestamp}_y_hat_ood.h5")
         print(f"Exporting y_hat_ood to {export_path}...")
         with h5py.File(export_path, "w") as f:
-            f.create_dataset("y_hat_ood", data=y_hat_ood)
+            f.create_dataset("y_hat_ood", data=y_hat_ood.astype(np.float32))
 
     # Fraction simulation
     ff_simulated_test_set_size = 100
@@ -208,7 +215,12 @@ def run_report_generator(
         report.append_fractional_simulation_result(fs, frac_sim_y_hat)
 
     # Generate report
-    report.make_report(y_hat, None, y_hat_ood)
+    report.make_report(
+        y_hat,
+        y_hat_ood_test=y_hat_ood,
+        class_thresholds=None,
+        ood_overfit=ood_overfit,
+    )
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
