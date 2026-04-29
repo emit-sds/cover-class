@@ -197,10 +197,10 @@ def run_report_generator(
             y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
 
     if export:
-        export_path = os.path.join(outdir, "y_hat_ood.h5")
+        export_path = os.path.join(outdir, f"{timestamp}_y_hat_ood.h5")
         print(f"Exporting y_hat_ood to {export_path}...")
         with h5py.File(export_path, "w") as f:
-            f.create_dataset(f"{timestamp}_y_hat_ood", data=y_hat_ood.astype(np.float32))
+            f.create_dataset("y_hat_ood", data=y_hat_ood.astype(np.float32))
 
     # Fraction simulation
     ff_simulated_test_set_size = 100
