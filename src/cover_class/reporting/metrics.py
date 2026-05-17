@@ -148,7 +148,7 @@ def missed_class_confusion(
         for j in range(n_classes):
             if i != j:
                 v = masked_miss_confusion_mat[i, j]
-                if np.isnan(v):
+                if np.ma.is_masked(v) or np.isnan(v):
                     continue
                 
                 # Calculate luminance of the background color
