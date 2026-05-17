@@ -36,8 +36,14 @@ def confusion_matrix(
     for c in range(n_classes):
         ax = axes[c]
         mask = ~np.isnan(y[:, c])
-        cmo = cm(y[mask, c], y_hat[mask, c])
-        pct = (cmo / cmo.sum(axis=1, keepdims=True)) * 100
+        cmo = cm(y[mask, c], y_hat[mask, c], labels=[0, 1])
+        row_totals = cmo.sum(axis=1, keepdims=True)
+        pct = np.divide(
+            cmo * 100,
+            row_totals,
+            out=np.zeros_like(cmo, dtype=float),
+            where=row_totals != 0,
+        )
         
         norm = Normalize(vmin=cmo.min(), vmax=cmo.max())
         cmap = plt.get_cmap("Blues")
