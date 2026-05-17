@@ -35,7 +35,8 @@ def confusion_matrix(
 
     for c in range(n_classes):
         ax = axes[c]
-        cmo = cm(y[:, c], y_hat[:, c])
+        mask = ~np.isnan(y[:, c])
+        cmo = cm(y[mask, c], y_hat[mask, c])
         pct = (cmo / cmo.sum(axis=1, keepdims=True)) * 100
         ax.imshow(cmo, cmap="Blues")
         ax.set_title(class_names[c])
@@ -68,9 +69,14 @@ def roc_auc(
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111)
 
-    aucs = {c: auc(*roc_curve(y[:,c], y_hat[:,c])[:2]) for c in range(y.shape[1])}
+    aucs = {}
+    for c in range(y.shape[1]):
+        mask = ~np.isnan(y[:, c])
+        aucs[c] = auc(*roc_curve(y[mask, c], y_hat[mask, c])[:2])
+
     for c, A in sorted(aucs.items(), key=lambda x: x[1], reverse=True):
-        fpr, tpr, _ = roc_curve(y[:,c], y_hat[:,c])
+        mask = ~np.isnan(y[:, c])
+        fpr, tpr, _ = roc_curve(y[mask, c], y_hat[mask, c])
         ax.plot(fpr, tpr, label=f"{class_names[c]} (AUC={A:.3f})")
 
     ax.plot([0,1],[0,1],"k--")
@@ -149,8 +155,9 @@ def tpr_fpr(
 
     out: dict = {name:{} for name in class_names}
     for i, name in enumerate(class_names):
-        yt = y[:, i]
-        yp = y_hat[:, i]
+        mask = ~np.isnan(y[:, i])
+        yt = y[mask, i]
+        yp = y_hat[mask, i]
 
         tp = int(((yt == 1) & (yp == 1)).sum())
         fn = int(((yt == 1) & (yp == 0)).sum())
@@ -177,9 +184,13 @@ def f_beta_scores(
 
     out: dict = {name:{} for name in class_names}
     for c, name in enumerate(class_names):
-        tp = ((y[:,c]==1)&(y_hat[:,c]==1)).sum()
-        fp = ((y[:,c]==0)&(y_hat[:,c]==1)).sum()
-        fn = ((y[:,c]==1)&(y_hat[:,c]==0)).sum()
+        mask = ~np.isnan(y[:, c])
+        yt = y[mask, c]
+        yp = y_hat[mask, c]
+
+        tp = ((yt == 1) & (yp == 1)).sum()
+        fp = ((yt == 0) & (yp == 1)).sum()
+        fn = ((yt == 1) & (yp == 0)).sum()
 
         prec = tp / (tp + fp + 1e-12)
         rec  = tp / (tp + fn + 1e-12)
@@ -209,11 +220,12 @@ def f1_opt_thr(
     thresholds = np.linspace(0, 1, n_steps)
     opt_thr = []
     for c in range(n_classes):
-        yt = y[:, c]
-        yp = y_hat[:, c]
+        mask = ~np.isnan(y[:, c])
+        yt = y[mask, c]
+        yp = y_hat[mask, c]
 
         # Edge case: class absent from ground truth or predictions are constant.
-        if yt.sum() == 0 or np.unique(yp).size == 1:
+        if np.nansum(yt) == 0 or np.unique(yp).size == 1:
             opt_thr.append(1.0)
             continue
 

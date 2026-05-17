@@ -121,7 +121,7 @@ def run_report_generator(
     test_dataloader = DataLoader(test_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # Create a dataset/dataloader to feed the OOD validation set in batches
-    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config, include_unknown=True)
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config, include_unknown=False)
     ood_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
     ood_dataloader = DataLoader(ood_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
