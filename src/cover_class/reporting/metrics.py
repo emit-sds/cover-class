@@ -214,7 +214,7 @@ def f1_opt_thr(
 
         # Edge case: class absent from ground truth or predictions are constant.
         if yt.sum() == 0 or np.unique(yp).size == 1:
-            opt_thr.append(0.5)
+            opt_thr.append(1.0)
             continue
 
         best_thr = 0.5
@@ -227,7 +227,7 @@ def f1_opt_thr(
             prec = tp / (tp + fp + 1e-12)
             rec  = tp / (tp + fn + 1e-12)
             fb   = (1 + beta**2) * prec * rec / (beta**2 * prec + rec + 1e-12)
-            if fb > best_fb:
+            if fb >= best_fb:
                 best_fb  = fb
                 best_thr = float(thr)
         opt_thr.append(best_thr)

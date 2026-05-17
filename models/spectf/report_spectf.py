@@ -121,7 +121,7 @@ def run_report_generator(
     test_dataloader = DataLoader(test_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # Create a dataset/dataloader to feed the OOD validation set in batches
-    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config)
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config, include_unknown=True)
     ood_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
     ood_dataloader = DataLoader(ood_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
@@ -203,15 +203,22 @@ def run_report_generator(
             f.create_dataset("y_hat_ood", data=y_hat_ood.astype(np.float32))
 
     # Fraction simulation
-    ff_simulated_test_set_size = 100
+    ff_simulated_test_set_size = 1000
     fs = ForcedFractionSimulation(dataloader, test_X, test_Y, ff_simulated_test_set_size)
     fs.hard_max_iters = 1_000
     for frac_sim_data, _ in fs:
         if len(frac_sim_data) == 0:
             continue
-        with torch.no_grad():
-            frac_sim_data = frac_sim_data.unsqueeze(-1)
-            frac_sim_y_hat = torch.sigmoid(model(frac_sim_data.to(device=device, dtype=torch.float32)))
+
+        frac_sim_y_hat_list = []
+        for i in range(0, len(frac_sim_data), bs):
+            batch_data = frac_sim_data[i : i + bs]
+            with torch.no_grad():
+                batch_data = batch_data.unsqueeze(-1).to(device=device, dtype=torch.float32)
+                batch_y_hat = torch.sigmoid(model(batch_data))
+                frac_sim_y_hat_list.append(batch_y_hat.cpu())
+
+        frac_sim_y_hat = torch.cat(frac_sim_y_hat_list, dim=0)
         report.append_fractional_simulation_result(fs, frac_sim_y_hat)
 
     # Generate report
