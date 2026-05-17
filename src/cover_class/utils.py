@@ -58,18 +58,17 @@ def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_
         spectra = np.asarray(f['spectra'][:])
         classes = np.asarray(f.attrs['classes'][:]).astype(str) # type: ignore
 
-        if not include_unknown:
-            mask = ~np.any(labels == 2, axis=1)
-            labels = labels[mask]
-            spectra = spectra[mask]
-
-        present = (labels != 0)
         idx = {c: j for j, c in enumerate(classes)}
 
         X = torch.from_numpy(spectra).to(torch.float32)
-        Y = np.zeros((labels.shape[0], len(class_order)), dtype=np.uint8)
+        Y_np = np.zeros((labels.shape[0], len(class_order)), dtype=np.float32)
         for i, name in enumerate(class_order):
-            Y[:, i] = present[:, idx[name]].astype(np.uint8)
-            if err_on_missed_class and Y[:, i].sum() == 0:
+            class_labels = labels[:, idx[name]]
+            #print(f"Class {name}: 0s: {np.sum(class_labels == 0)}, 1s: {np.sum(class_labels == 1)}, 2s: {np.sum(class_labels == 2)}")
+            if include_unknown:
+                Y_np[:, i] = np.where(class_labels == 2, 1, class_labels)
+            else:
+                Y_np[:, i] = np.where(class_labels == 2, np.nan, class_labels)
+            if err_on_missed_class and not np.any(Y_np[:, i] == 1):
                 raise RuntimeError(f"No data is found in the OOD Test set for class: '{name}'")
-        return X, torch.from_numpy(Y).to(torch.long)
+        return X, torch.from_numpy(Y_np).to(torch.float32)

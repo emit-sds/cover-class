@@ -35,16 +35,33 @@ def confusion_matrix(
 
     for c in range(n_classes):
         ax = axes[c]
-        cmo = cm(y[:, c], y_hat[:, c])
-        pct = (cmo / cmo.sum(axis=1, keepdims=True)) * 100
-        ax.imshow(cmo, cmap="Blues")
+        mask = ~np.isnan(y[:, c])
+        cmo = cm(y[mask, c], y_hat[mask, c], labels=[0, 1])
+        row_totals = cmo.sum(axis=1, keepdims=True)
+        pct = np.divide(
+            cmo * 100,
+            row_totals,
+            out=np.zeros_like(cmo, dtype=float),
+            where=row_totals != 0,
+        )
+        
+        norm = Normalize(vmin=cmo.min(), vmax=cmo.max())
+        cmap = plt.get_cmap("Blues")
+        im = ax.imshow(cmo, cmap=cmap, norm=norm)
+        
         ax.set_title(class_names[c])
         ax.set_xlabel("Predicted")
         ax.set_ylabel("True")
-        ax.set_xticks([])
-        ax.set_yticks([])
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticklabels(["0", "1"])
+        ax.set_yticklabels(["0", "1"])
+        
         for (i, j), v in np.ndenumerate(cmo):
-            this_color = "black" if pct[i,j]<33 else "white"
+            # Calculate luminance of the background color
+            rgba = cmap(norm(v))
+            luminance = 0.299*rgba[0] + 0.587*rgba[1] + 0.114*rgba[2]
+            this_color = "black" if luminance > 0.5 else "white"
             ax.text(j, i, f"{v}\n({pct[i,j]:.1f}%)", ha="center", va="center", color=this_color)
 
     fig.tight_layout()
@@ -68,9 +85,14 @@ def roc_auc(
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111)
 
-    aucs = {c: auc(*roc_curve(y[:,c], y_hat[:,c])[:2]) for c in range(y.shape[1])}
+    aucs = {}
+    for c in range(y.shape[1]):
+        mask = ~np.isnan(y[:, c])
+        aucs[c] = auc(*roc_curve(y[mask, c], y_hat[mask, c])[:2])
+
     for c, A in sorted(aucs.items(), key=lambda x: x[1], reverse=True):
-        fpr, tpr, _ = roc_curve(y[:,c], y_hat[:,c])
+        mask = ~np.isnan(y[:, c])
+        fpr, tpr, _ = roc_curve(y[mask, c], y_hat[mask, c])
         ax.plot(fpr, tpr, label=f"{class_names[c]} (AUC={A:.3f})")
 
     ax.plot([0,1],[0,1],"k--")
@@ -118,7 +140,7 @@ def missed_class_confusion(
     vmax = max(1.0, np.nanmax(conf))
     im = ax.imshow(masked_miss_confusion_mat, cmap=cmap, norm=Normalize(0, vmax))
 
-    ax.set(title="Miss-Class Confusion", xlabel="Predicted", ylabel="True (missed)", xticks=range(n_classes), yticks=range(n_classes))
+    ax.set(title="Miss-Class Confusion", xlabel="Predicted Class", ylabel="True Class (Missed)", xticks=range(n_classes), yticks=range(n_classes))
     ax.set_xticklabels(class_names, rotation=45, ha="right")
     ax.set_yticklabels(class_names)
 
@@ -126,7 +148,15 @@ def missed_class_confusion(
         for j in range(n_classes):
             if i != j:
                 v = masked_miss_confusion_mat[i, j]
-                ax.text(j, i, f"{float(v):.1f}%", ha="center", va="center", color="white" if im.norm(v) > .5 else "black", fontsize=9)
+                if np.ma.is_masked(v) or np.isnan(v):
+                    continue
+                
+                # Calculate luminance of the background color
+                rgba = cmap(im.norm(v))
+                luminance = 0.299*rgba[0] + 0.587*rgba[1] + 0.114*rgba[2]
+                text_color = "black" if luminance > 0.5 else "white"
+                
+                ax.text(j, i, f"{float(v):.1f}%", ha="center", va="center", color=text_color, fontsize=9)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("% misses")
@@ -149,8 +179,9 @@ def tpr_fpr(
 
     out: dict = {name:{} for name in class_names}
     for i, name in enumerate(class_names):
-        yt = y[:, i]
-        yp = y_hat[:, i]
+        mask = ~np.isnan(y[:, i])
+        yt = y[mask, i]
+        yp = y_hat[mask, i]
 
         tp = int(((yt == 1) & (yp == 1)).sum())
         fn = int(((yt == 1) & (yp == 0)).sum())
@@ -177,9 +208,13 @@ def f_beta_scores(
 
     out: dict = {name:{} for name in class_names}
     for c, name in enumerate(class_names):
-        tp = ((y[:,c]==1)&(y_hat[:,c]==1)).sum()
-        fp = ((y[:,c]==0)&(y_hat[:,c]==1)).sum()
-        fn = ((y[:,c]==1)&(y_hat[:,c]==0)).sum()
+        mask = ~np.isnan(y[:, c])
+        yt = y[mask, c]
+        yp = y_hat[mask, c]
+
+        tp = ((yt == 1) & (yp == 1)).sum()
+        fp = ((yt == 0) & (yp == 1)).sum()
+        fn = ((yt == 1) & (yp == 0)).sum()
 
         prec = tp / (tp + fp + 1e-12)
         rec  = tp / (tp + fn + 1e-12)
@@ -209,12 +244,13 @@ def f1_opt_thr(
     thresholds = np.linspace(0, 1, n_steps)
     opt_thr = []
     for c in range(n_classes):
-        yt = y[:, c]
-        yp = y_hat[:, c]
+        mask = ~np.isnan(y[:, c])
+        yt = y[mask, c]
+        yp = y_hat[mask, c]
 
         # Edge case: class absent from ground truth or predictions are constant.
-        if yt.sum() == 0 or np.unique(yp).size == 1:
-            opt_thr.append(0.5)
+        if np.nansum(yt) == 0 or np.unique(yp).size == 1:
+            opt_thr.append(1.0)
             continue
 
         best_thr = 0.5
@@ -227,7 +263,7 @@ def f1_opt_thr(
             prec = tp / (tp + fp + 1e-12)
             rec  = tp / (tp + fn + 1e-12)
             fb   = (1 + beta**2) * prec * rec / (beta**2 * prec + rec + 1e-12)
-            if fb > best_fb:
+            if fb >= best_fb:
                 best_fb  = fb
                 best_thr = float(thr)
         opt_thr.append(best_thr)

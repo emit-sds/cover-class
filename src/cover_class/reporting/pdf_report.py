@@ -56,7 +56,7 @@ def _metrics_table(contents: List, styles: Dict, metrics: Dict, title: str) -> N
     data = [["Metric", "Value"]]
     for k, v in metrics.items():
         if isinstance(v, dict):
-            metric_tables.append(make_table([[str(k), "Value"]] + [[str(i), str(j)] for i, j in v.items()]))
+            metric_tables.append(make_table([[str(k), "Value"]] + [[str(i), f"{j:.2f}"] for i, j in v.items()]))
         else:
             data.append([str(k), str(v)])
     if len(data) >1:
