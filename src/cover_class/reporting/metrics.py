@@ -38,14 +38,24 @@ def confusion_matrix(
         mask = ~np.isnan(y[:, c])
         cmo = cm(y[mask, c], y_hat[mask, c])
         pct = (cmo / cmo.sum(axis=1, keepdims=True)) * 100
-        ax.imshow(cmo, cmap="Blues")
+        
+        norm = Normalize(vmin=cmo.min(), vmax=cmo.max())
+        cmap = plt.get_cmap("Blues")
+        im = ax.imshow(cmo, cmap=cmap, norm=norm)
+        
         ax.set_title(class_names[c])
         ax.set_xlabel("Predicted")
         ax.set_ylabel("True")
-        ax.set_xticks([])
-        ax.set_yticks([])
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticklabels(["0", "1"])
+        ax.set_yticklabels(["0", "1"])
+        
         for (i, j), v in np.ndenumerate(cmo):
-            this_color = "black" if pct[i,j]<33 else "white"
+            # Calculate luminance of the background color
+            rgba = cmap(norm(v))
+            luminance = 0.299*rgba[0] + 0.587*rgba[1] + 0.114*rgba[2]
+            this_color = "black" if luminance > 0.5 else "white"
             ax.text(j, i, f"{v}\n({pct[i,j]:.1f}%)", ha="center", va="center", color=this_color)
 
     fig.tight_layout()
@@ -124,7 +134,7 @@ def missed_class_confusion(
     vmax = max(1.0, np.nanmax(conf))
     im = ax.imshow(masked_miss_confusion_mat, cmap=cmap, norm=Normalize(0, vmax))
 
-    ax.set(title="Miss-Class Confusion", xlabel="Predicted", ylabel="True (missed)", xticks=range(n_classes), yticks=range(n_classes))
+    ax.set(title="Miss-Class Confusion", xlabel="Predicted Class", ylabel="True Class (Missed)", xticks=range(n_classes), yticks=range(n_classes))
     ax.set_xticklabels(class_names, rotation=45, ha="right")
     ax.set_yticklabels(class_names)
 
@@ -132,7 +142,15 @@ def missed_class_confusion(
         for j in range(n_classes):
             if i != j:
                 v = masked_miss_confusion_mat[i, j]
-                ax.text(j, i, f"{float(v):.1f}%", ha="center", va="center", color="white" if im.norm(v) > .5 else "black", fontsize=9)
+                if np.isnan(v):
+                    continue
+                
+                # Calculate luminance of the background color
+                rgba = cmap(im.norm(v))
+                luminance = 0.299*rgba[0] + 0.587*rgba[1] + 0.114*rgba[2]
+                text_color = "black" if luminance > 0.5 else "white"
+                
+                ax.text(j, i, f"{float(v):.1f}%", ha="center", va="center", color=text_color, fontsize=9)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("% misses")

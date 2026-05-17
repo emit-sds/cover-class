@@ -64,6 +64,7 @@ def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_
         Y_np = np.zeros((labels.shape[0], len(class_order)), dtype=np.float32)
         for i, name in enumerate(class_order):
             class_labels = labels[:, idx[name]]
+            #print(f"Class {name}: 0s: {np.sum(class_labels == 0)}, 1s: {np.sum(class_labels == 1)}, 2s: {np.sum(class_labels == 2)}")
             Y_np[:, i] = np.where(class_labels == 2, np.nan, class_labels)
             if err_on_missed_class and not np.any(Y_np[:, i] == 1):
                 raise RuntimeError(f"No data is found in the OOD Test set for class: '{name}'")
