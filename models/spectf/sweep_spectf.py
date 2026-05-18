@@ -165,7 +165,7 @@ def run_pipeline_classifier(
     test_dataloader = DataLoader(test_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # Validation set dataloader for OOD evaluation
-    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config)
+    ood_test_set_x, ood_test_set_y = ood_test_set_from_config(data_config, include_unknown=False)
     ood_dataset = TestDataset(ood_test_set_x, ood_test_set_y)
     ood_dataloader = DataLoader(ood_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
@@ -312,7 +312,7 @@ def run_pipeline_classifier(
 
         # Calculate OOD validation set metrics using the test set thresholds
         _figs = []
-        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, test_thresholds, _figs, class_names)
+        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, None, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
