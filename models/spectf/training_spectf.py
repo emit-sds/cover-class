@@ -224,9 +224,11 @@ def run_pipeline_classifier(
             batch_Y = batch_Y.to(device=device, dtype=torch.float32)
             with torch.no_grad():
                 logits = model(batch_X)
-                batch_loss = criterion(logits, batch_Y)
-                ood_loss_sum += batch_loss.cpu().item()
-                ood_batches += 1
+                mask = ~torch.isnan(batch_Y)
+                if mask.any():
+                    batch_loss = criterion(logits[mask], batch_Y[mask])
+                    ood_loss_sum += batch_loss.cpu().item()
+                    ood_batches += 1
                 batch_y_hat = torch.sigmoid(logits)
                 batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
                 batch_len = len(batch_y_hat)
