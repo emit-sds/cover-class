@@ -175,6 +175,14 @@ def run_pipeline_classifier(
         project=m_config['wandb']['project'],
         name=timestamp,
         dir='./',
+        config={
+            "outdir": outdir,
+            "data_config": data_config,
+            "model_config": model_config,
+            "simulated_test_set_size": simulated_test_set_size,
+            "focal_alpha": focal_alpha,
+            "focal_gamma": focal_gamma,
+        },
         settings=wandb.Settings(_service_wait=300)
     )
 
