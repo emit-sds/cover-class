@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
 import schedulefree
 
 from cover_class.train import setup_training_from_config, make_simulation_test_set, banddef_from_config #type: ignore
@@ -39,6 +40,30 @@ class TestDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.test_X[idx], self.test_Y[idx]
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+        pt = torch.exp(-bce_loss)
+        focal_loss = ((1 - pt) ** self.gamma) * bce_loss
+
+        if self.alpha is not None:
+            alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+            focal_loss = alpha_t * focal_loss
+
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        if self.reduction == 'sum':
+            return focal_loss.sum()
+
+        return focal_loss
 
 @click.command()
 @click.option(
@@ -70,11 +95,28 @@ class TestDataset(Dataset):
     help="Number of rows to generate for the simulated test set.",
     envvar=f'{ENV_VAR_PREFIX}_SIMULATED_TEST_SET_SIZE'
 )
+@click.option(
+    "--focal-alpha",
+    required=False,
+    default="0.25",
+    help="Focal loss alpha parameter. Set to 'None' to disable.",
+    envvar=f'{ENV_VAR_PREFIX}_FOCAL_ALPHA'
+)
+@click.option(
+    "--focal-gamma",
+    required=False,
+    type=float,
+    default=2.0,
+    help="Focal loss gamma parameter.",
+    envvar=f'{ENV_VAR_PREFIX}_FOCAL_GAMMA'
+)
 def run_pipeline_classifier(
         outdir: str,
         data_config: str,
         model_config: str,
-        simulated_test_set_size: int = 100_000
+        simulated_test_set_size: int = 100_000,
+        focal_alpha: str = "0.25",
+        focal_gamma: float = 2.0
     ):
 
     with open(model_config, 'r', encoding='utf-8') as f:
@@ -117,7 +159,9 @@ def run_pipeline_classifier(
                          use_residual=m_config['model']['use_residual'],
                          num_layers=m_config['model']['num_layers']).to(device)
 
-    criterion = nn.BCEWithLogitsLoss()
+    # criterion = nn.BCEWithLogitsLoss()
+    alpha_val = None if focal_alpha == "None" else float(focal_alpha)
+    criterion = FocalLoss(alpha=alpha_val, gamma=focal_gamma)
     optimizer = schedulefree.AdamWScheduleFree(
         (p for p in model.parameters() if p.requires_grad),
         lr=m_config['training']['learning_rate'],
@@ -145,6 +189,8 @@ def run_pipeline_classifier(
                 "learning_rate": m_config['training']['learning_rate'],
                 "batch_size": m_config['batch_size'],
                 "optimizer": optimizer.__class__.__name__,
+                "focal_alpha": alpha_val,
+                "focal_gamma": focal_gamma,
                 "params": m_config['model']
             },
         ),
