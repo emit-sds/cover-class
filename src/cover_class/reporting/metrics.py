@@ -8,7 +8,7 @@ from matplotlib import cm as color_map
 from matplotlib.colors import Normalize
 import matplotlib.ticker as mtick
 from sklearn.metrics import confusion_matrix as cm #type: ignore[import]
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_recall_curve
 import math
 
 from cover_class.reporting.utils import make_numpy
@@ -228,20 +228,18 @@ def pr_auc_curve(): ...
 def expected_calibration_error(): ...
 def adaptive_calibration_error(): ...
 
-def f1_opt_thr(
+def fpr_opt_thr(
         y_hat: Union[Tensor, NDArray],
         y: Union[Tensor, NDArray],
-        beta: float = 1.0,
-        n_steps: int = 101,
+        target_fpr: float = 0.05,
     ) -> List[float]:
     """
-    Finds the per-class threshold that maximises the F-beta score.
-    Returns a list of optimal thresholds, one per class.
+    Finds the per-class threshold that results in a False Positive Rate closest to target_fpr.
+    Returns a list of thresholds, one per class.
     """
     y_hat = make_numpy(y_hat)
     y = make_numpy(y)
     n_classes = y.shape[1]
-    thresholds = np.linspace(0, 1, n_steps)
     opt_thr = []
     for c in range(n_classes):
         mask = ~np.isnan(y[:, c])
@@ -253,18 +251,47 @@ def f1_opt_thr(
             opt_thr.append(1.0)
             continue
 
-        best_thr = 0.5
-        best_fb  = -1.0
-        for thr in thresholds:
-            yp_bin = (yp >= thr).astype(int)
-            tp = int(((yt == 1) & (yp_bin == 1)).sum())
-            fp = int(((yt == 0) & (yp_bin == 1)).sum())
-            fn = int(((yt == 1) & (yp_bin == 0)).sum())
-            prec = tp / (tp + fp + 1e-12)
-            rec  = tp / (tp + fn + 1e-12)
-            fb   = (1 + beta**2) * prec * rec / (beta**2 * prec + rec + 1e-12)
-            if fb >= best_fb:
-                best_fb  = fb
-                best_thr = float(thr)
-        opt_thr.append(best_thr)
+        fpr, tpr, thresholds = roc_curve(yt, yp)
+        
+        # Find the threshold where fpr is closest to target_fpr
+        idx = np.argmin(np.abs(fpr - target_fpr))
+        opt_thr.append(float(thresholds[idx]))
+        
+    return opt_thr
+
+def f1_opt_thr(
+        y_hat: Union[Tensor, NDArray],
+        y: Union[Tensor, NDArray],
+        beta: float = 1.0,
+    ) -> List[float]:
+    """
+    Finds the per-class threshold that maximises the F-beta score.
+    Returns a list of optimal thresholds, one per class.
+    """
+    y_hat = make_numpy(y_hat)
+    y = make_numpy(y)
+    n_classes = y.shape[1]
+    opt_thr = []
+    for c in range(n_classes):
+        mask = ~np.isnan(y[:, c])
+        yt = y[mask, c]
+        yp = y_hat[mask, c]
+
+        # Edge case: class absent from ground truth or predictions are constant.
+        if np.nansum(yt) == 0 or np.unique(yp).size == 1:
+            opt_thr.append(1.0)
+            continue
+
+        precision, recall, thresholds = precision_recall_curve(yt, yp)
+        
+        # The precision and recall arrays have one more element than the thresholds array.
+        # The last precision is 1 and recall is 0.
+        precision = precision[:-1]
+        recall = recall[:-1]
+        
+        fb = (1 + beta**2) * precision * recall / (beta**2 * precision + recall + 1e-12)
+        
+        idx = np.argmax(fb)
+        opt_thr.append(float(thresholds[idx]))
+        
     return opt_thr
