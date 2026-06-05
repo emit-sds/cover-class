@@ -161,7 +161,11 @@ def run_pipeline_classifier(
 
     # criterion = nn.BCEWithLogitsLoss()
     alpha_val = None if focal_alpha == "None" else float(focal_alpha)
-    criterion = FocalLoss(alpha=alpha_val, gamma=focal_gamma)
+    if alpha_val is None and focal_gamma == 0.0:
+        criterion = nn.BCEWithLogitsLoss()
+    else:
+        criterion = FocalLoss(alpha=alpha_val, gamma=focal_gamma)
+
     optimizer = schedulefree.AdamWScheduleFree(
         (p for p in model.parameters() if p.requires_grad),
         lr=m_config['training']['learning_rate'],
