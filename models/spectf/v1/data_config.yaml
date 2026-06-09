@@ -1,0 +1,95 @@
+version: v0
+tags: initial-config classes[]
+drop-bands-wavelengths: # needs to be a list of tuples
+  - [0, 440] # for one-band items
+  - [1310, 1490]
+  - [1770, 2050]
+  - [2440, 2880]
+datasets:
+  soil:
+    - /store/jakelee/emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_soil_soil.hdf5
+    - /store/jakelee/emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_rock_rock.hdf5
+  pv:
+    - /store/jakelee/emit-frac/datasets/20260517-sub/pv_kmeans_subsampled_pv_pv.hdf5
+  npv:
+    - /store/jakelee/emit-frac/datasets/20260517-sub/npv_kmeans_subsampled_npv_npv.hdf5
+  snow+ice:
+    - /store/jakelee/emit-frac/datasets/20260517-sub/snow+ice_kmeans_subsampled_snow-ice_snow-ice.hdf5
+  water:
+    - /store/jakelee/emit-frac/datasets/20260517-sub/water_kmeans_subsampled_water_water.hdf5
+ood-test-set: /store/jakelee/emit-frac/datasets/validation_20260317_wfids_noash_goodwl_subsampled.h5
+simulation:
+  sim_mixture_probs_csv: /home/jakelee/emit-frac/cover-class/src/cover_class/config/sim-mixture-probs.csv
+  n_components:
+    soil: [1]
+    pv: [1,2,3]
+    npv: [1,2,3]
+    snow+ice: [1,2,3]
+    water: [1,2,3]
+  n_classes_in_subsets: 3
+  alpha: 0.3
+  min_frac: 0.1
+  alpha_uniform_low: 0.1
+  alpha_uniform_high: 10.
+  white_noise: 0.0001
+  noise_brightness_scaling: true
+  noise_scalar: 0.3
+  noise_covariance_csv: /store/jakelee/emit-frac/datasets/spectral_covariances_no_header_v2.csv
+  return_fractions: true
+  glint_upper_constant: 0.15
+  glint_lower_constant: 0.0
+  magnitude_max: 1.2
+  scalars:
+    soil:
+      low: 0.95
+      high: 1.8
+    pv:
+      low: 0.95
+      high: 1.05
+    npv:
+      low: 0.9
+      high: 1.1
+    snow+ice:
+      low: 0.8
+      high: 1.2
+    water:
+      low: 0.5
+      high: 1.2
+  forced_fraction_test_set:
+    soil: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    pv: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    npv: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    snow+ice: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+    water: [[0.01, 0.05], [0.05, 0.10], [0.10, 0.15], [0.15, 0.25], [0.25, 0.50]]
+subsample:
+  test-fraction: 0.2
+  selected-method:
+  convex-hull:
+    num_pc: 4
+    n_samples: 100
+    qhull_options:
+  kmeans:
+    num_pc: 4
+    n_samples: 100
+    init: k-means++
+    n_init: auto
+    max_iter: 300
+    tol: 0.0001
+    random_state: 2345
+    algorithm: lloyd
+  kmedoids:
+    num_pc: 4
+    n_samples: 10
+    method: alternate
+    init: k-medoids++
+    max_iter: 300
+    random_state: 2345
+    metric: mahalanobis
+  lhs:
+    num_pc: 1
+    hypercubes_per_dimension: 3
+    samples_per_hypercube: 3
+  random:
+    n_samples: 10
+dataloader:
+  percent-static-data: 0.0
