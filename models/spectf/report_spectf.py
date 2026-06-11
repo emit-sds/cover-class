@@ -86,6 +86,12 @@ class TestDataset(Dataset):
     default=False,
     help="Calculate the OOD metrics using the best threshold, not the simulated test threshold"
 )
+@click.option(
+    "--fixed-fpr",
+    type=float,
+    default=None,
+    help="Calculate the metrics at the fixed FPR, not for the best F1 score"
+)
 def run_report_generator(
         outdir: str,
         data_config: str,
@@ -93,7 +99,8 @@ def run_report_generator(
         model_weights: str,
         simulated_test_set_size: int = 100_000,
         export: bool = False,
-        ood_overfit: bool = False
+        ood_overfit: bool = False,
+        fixed_fpr: float = None,
     ):
 
     # Load model config
@@ -227,6 +234,7 @@ def run_report_generator(
         y_hat_ood_test=y_hat_ood,
         class_thresholds=None,
         ood_overfit=ood_overfit,
+        target_fpr=fixed_fpr
     )
 
 if __name__ == "__main__":

@@ -17,7 +17,8 @@ from cover_class.reporting.metrics import (
     missed_class_confusion, 
     tpr_fpr, 
     f_beta_scores,
-    f1_opt_thr
+    f1_opt_thr,
+    fpr_opt_thr
 )
 from cover_class.reporting.json_report import generate_json_report
 from cover_class.reporting.pdf_report import generate_pdf_report
@@ -105,17 +106,24 @@ class Report:
     def make_report(self, y_hat: Union[Tensor, NDArray],
                     y_hat_ood_test: Optional[Union[Tensor, NDArray]] = None,
                     class_thresholds: Optional[List[float]] = None, 
-                    ood_overfit: bool = False):
+                    ood_overfit: bool = False,
+                    target_fpr: Optional[float] = None):
         # 1. Get Metrics
         ds: Dict = self.config['datasets'] # type: ignore
         class_names = [str(c) for c in ds.keys() if ds[c] is not None and len(ds[c])]
 
-        # Calculate the optimal F1 thresholds only on the test set if not specified
+        # Calculate thresholds only on the test set if not specified
         if class_thresholds is None:
-            class_thresholds = f1_opt_thr(y_hat, self.Y_test)
+            if target_fpr is not None:
+                class_thresholds = fpr_opt_thr(y_hat, self.Y_test, target_fpr=target_fpr)
+            else:
+                class_thresholds = f1_opt_thr(y_hat, self.Y_test)
 
         if ood_overfit and y_hat_ood_test is not None:
-            class_thresholds_ood = f1_opt_thr(y_hat_ood_test, self.Y_ood_test)
+            if target_fpr is not None:
+                class_thresholds_ood = fpr_opt_thr(y_hat_ood_test, self.Y_ood_test, target_fpr=target_fpr)
+            else:
+                class_thresholds_ood = f1_opt_thr(y_hat_ood_test, self.Y_ood_test)
         else:
             class_thresholds_ood = class_thresholds
 
