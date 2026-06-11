@@ -7,19 +7,19 @@ drop-bands-wavelengths: # needs to be a list of tuples
   - [2440, 2880]
 datasets:
   soil:
-    - /store/jakelee/emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_soil_soil.hdf5
-    - /store/jakelee/emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_rock_rock.hdf5
+    - /emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_soil_soil.hdf5
+    - /emit-frac/datasets/20260517-sub/soil_kmeans_subsampled_rock_rock.hdf5
   pv:
-    - /store/jakelee/emit-frac/datasets/20260517-sub/pv_kmeans_subsampled_pv_pv.hdf5
+    - /emit-frac/datasets/20260517-sub/pv_kmeans_subsampled_pv_pv.hdf5
   npv:
-    - /store/jakelee/emit-frac/datasets/20260517-sub/npv_kmeans_subsampled_npv_npv.hdf5
+    - /emit-frac/datasets/20260517-sub/npv_kmeans_subsampled_npv_npv.hdf5
   snow+ice:
-    - /store/jakelee/emit-frac/datasets/20260517-sub/snow+ice_kmeans_subsampled_snow-ice_snow-ice.hdf5
+    - /emit-frac/datasets/20260517-sub/snow+ice_kmeans_subsampled_snow-ice_snow-ice.hdf5
   water:
-    - /store/jakelee/emit-frac/datasets/20260517-sub/water_kmeans_subsampled_water_water.hdf5
-ood-test-set: /store/jakelee/emit-frac/datasets/validation_20260317_wfids_noash_goodwl_subsampled.h5
+    - /emit-frac/datasets/20260517-sub/water_kmeans_subsampled_water_water.hdf5
+ood-test-set: /emit-frac/datasets/validation_20260317_wfids_noash_goodwl_subsampled.h5
 simulation:
-  sim_mixture_probs_csv: /home/jakelee/emit-frac/cover-class/src/cover_class/config/sim-mixture-probs.csv
+  sim_mixture_probs_csv: /cover-class/src/cover_class/config/sim-mixture-probs.csv
   n_components:
     soil: [1]
     pv: [1,2,3]
@@ -28,13 +28,13 @@ simulation:
     water: [1,2,3]
   n_classes_in_subsets: 3
   alpha: 0.3
-  min_frac: 0.1
+  min_frac: 0.2
   alpha_uniform_low: 0.1
   alpha_uniform_high: 10.
   white_noise: 0.0001
   noise_brightness_scaling: true
   noise_scalar: 0.3
-  noise_covariance_csv: /store/jakelee/emit-frac/datasets/spectral_covariances_no_header_v2.csv
+  noise_covariance_csv: /emit-frac/datasets/spectral_covariances_no_header_v2.csv
   return_fractions: true
   glint_upper_constant: 0.15
   glint_lower_constant: 0.0
