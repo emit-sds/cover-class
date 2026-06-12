@@ -17,6 +17,51 @@ from cover_class.static.retrieval import make_hdf5
 def make_run_name() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
+def train_test_from_config(config: str|Dict, seed: Optional[int] = None):
+    """
+    Returns train and test spectra and labels as numpy arrays.
+
+    Args:
+        config: The config object.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        train_spectra, test_spectra, train_labels, test_labels
+    """
+    if seed is not None:
+        sseed(seed)
+    config = read_config(config)
+    drop_bands = config['drop-bands-wavelengths']
+    
+    train_spectra, test_spectra, train_labels, test_labels = [], [], [], []
+    
+    for i, d in enumerate(config['datasets']):
+        hdf5_list = config['datasets'][d]
+        if hdf5_list is None: continue
+        
+        for hdf5 in hdf5_list:
+            with h5py.File(hdf5, 'r') as f:
+                file_spectra = f['spectra'][:]
+                file_wavelengths = f.attrs['wavelengths']
+                file_spectra = drop_bad_bands(file_spectra, file_wavelengths, drop_bands)
+                subsampled_spectra, _, _ = subsample_from_config(config, hdf5, file_spectra)
+                labels = np.full((subsampled_spectra.shape[0],), i)
+                
+                X_train, X_test, Y_train, Y_test = train_test_split(subsampled_spectra, labels, config['subsample']['test-fraction'])
+                
+                train_spectra.append(X_train)
+                test_spectra.append(X_test)
+                train_labels.append(Y_train)
+                test_labels.append(Y_test)
+    
+    return (
+        np.concatenate(train_spectra, axis=0),
+        np.concatenate(test_spectra, axis=0),
+        np.concatenate(train_labels, axis=0),
+        np.concatenate(test_labels, axis=0),
+    )
+
+
 def setup_training_from_config(
         config: str|Dict, 
         batch_size: int,
