@@ -22,3 +22,5 @@ datasets:
     water:
       - http:example.com
       - /some/path
+left-edge-correction: 
+  - /some/path/to/hdf5: [100, 115, 200]

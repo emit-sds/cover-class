@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 from torch import FloatTensor, Tensor
 import torch
 from numpy.typing import NDArray
@@ -19,3 +19,17 @@ def interior_interpolation(
 
 def convolve(data_matrix:FloatTensor) -> FloatTensor: ... # type: ignore 
 
+def left_edge_scale(
+        data_matrix: NDArray[np.float32],
+        left_edges: List[int]
+    ) -> None:
+    """
+    This function takes in the data matrix and the left edges of the edge discontinuity. 
+    It then scales the left side of the spectra to be on the same magnitude.
+    As such, there will be cumulative scaling of the left-portion of the data matrix until the 
+    edges are all sequentially processed/corrected. 
+    """
+    for edge in sorted(left_edges):
+        denom = np.where(data_matrix[:, edge] == 0, 1e-8, data_matrix[:, edge]) # division by 0 protection
+        scaling_factors = data_matrix[:, edge+1] / denom
+        data_matrix[:, :edge+1] *= scaling_factors[:, np.newaxis]

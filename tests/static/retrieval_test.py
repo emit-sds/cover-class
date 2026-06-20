@@ -6,6 +6,7 @@ import pandas as pd # type: ignore[import]
 import torch
 import io
 import contextlib
+from copy import deepcopy
 
 from cover_class.static import retrieval # type: ignore[import]
 MODULE = "cover_class.static.retrieval"
@@ -95,6 +96,34 @@ class retrievalTest(unittest.TestCase):
         np.testing.assert_allclose(wl, wls)
         np.testing.assert_allclose(sp, spectra)
 
+    def test_left_edge_correction(self):
+        data = np.array([
+            [1.0, 2.0, 4.0, 8.0],
+            [2.0, 4.0, 8.0, 16.0],
+        ], dtype=np.float32)
+        d0 = deepcopy(data)
+        d1 = deepcopy(data)
+
+        left_edges = [1]
+        expected = np.array([
+            [2.0, 4.0, 4.0, 8.0],
+            [4.0, 8.0, 8.0, 16.0],
+        ], dtype=np.float32)
+        retrieval.left_edge_scale(d0, left_edges)
+        np.testing.assert_allclose(d0, expected, rtol=1e-6)
+
+        left_edges = [1,2]
+        expected = np.array([
+            [4.0, 8.0, 8.0, 8.0],
+            [8.0, 16.0, 16.0, 16.0],
+        ], dtype=np.float32)
+        retrieval.left_edge_scale(d1, left_edges)
+        np.testing.assert_allclose(d1, expected, rtol=1e-6)
+        
+        # test out of order indices
+        left_edges = [2, 1]
+        retrieval.left_edge_scale(data, left_edges)
+        np.testing.assert_allclose(data, expected, rtol=1e-6)
 
 if __name__ == "__main__":
     unittest.main()
