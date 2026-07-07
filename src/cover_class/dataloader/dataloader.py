@@ -6,6 +6,7 @@ from msgspec import Struct, field
 
 from cover_class.simulation import args_from_config, SimulationArgs, DataArgs
 import cover_class.simulation as sim
+from cover_class.simulation.simulate import get_fractions_by_class
 from cover_class.utils import read_config
 
 
@@ -20,6 +21,7 @@ class OrchestratorDatasetArgs(Struct):
     static_labels: Optional[torch.Tensor]
 
     num_classes: int = field(default=0)
+    return_fractions: bool = field(default=False)
     _using_static: bool = field(default=False)
     _using_sim: bool   = field(default=False)
 
@@ -96,8 +98,12 @@ class OrchestratorDataset(IterableDataset):
                 self.static_samples_seen += len(idx)
                 if end >= len(self.args.static_data)-1: # type: ignore
                     self.__reset__()
-                
-                labels = make_one_hot(self.args.static_labels[idx]) # type: ignore
+
+                if self.args.return_fractions:
+                    # For static data, create one-hot-like fractions (1.0 for true class, 0.0 for others)
+                    labels = make_one_hot(self.args.static_labels[idx]).to(dtype=torch.float32) # type: ignore
+                else:
+                    labels = make_one_hot(self.args.static_labels[idx]) # type: ignore
                 self.batch_dirichlet_fraction_store = None
                 yield self.args.static_data[idx], labels # type: ignore
 
@@ -106,7 +112,12 @@ class OrchestratorDataset(IterableDataset):
                 # mypy doesn't catch self.args._using_sim
                 data, labels, fractions = sim.run_simulation(self.args.sim_config_args, self.args.sim_data_args) # type: ignore
                 self.batch_dirichlet_fraction_store = fractions
-                yield data, make_one_hot(labels)
+
+                if self.args.return_fractions:
+                    # Return fractions directly (already in correct format from run_simulation)
+                    yield data, fractions
+                else:
+                    yield data, make_one_hot(labels)
 
             else: raise StopIteration()
 
@@ -129,11 +140,12 @@ class OrchestratorDataset(IterableDataset):
 
 
 def dataloader_from_config(
-        config: Dict|str, 
+        config: Dict|str,
         spectra:FloatTensor,
         labels:LongTensor,
         batch_size:int,
-        shuffle: bool = True, 
+        shuffle: bool = True,
+        return_fractions: bool = False,
         misc_dataloader_params: dict = {},
     ) -> DataLoader:
 
@@ -146,7 +158,8 @@ def dataloader_from_config(
         sim_config_args,
         sim_data_args,
         spectra,
-        labels.long()
+        labels.long(),
+        return_fractions=return_fractions
     )
     ods = OrchestratorDataset(ods_args, shuffle)
     return DataLoader(ods, batch_size=None, **misc_dataloader_params)

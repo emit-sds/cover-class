@@ -63,12 +63,13 @@ def train_test_from_config(config: str|Dict, seed: Optional[int] = None):
 
 
 def setup_training_from_config(
-        config: str|Dict, 
+        config: str|Dict,
         batch_size: int,
         shuffle: bool = True,
         seed: Optional[int] = None,
         subsampled_files_outdir: str = '',
         run_name: str = '',
+        return_fractions: bool = False,
         misc_dataloader_params: dict = {},
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
@@ -86,7 +87,7 @@ def setup_training_from_config(
     for i, d in enumerate(config['datasets']):
         hdf5_list = config['datasets'][d]
         if hdf5_list is None: continue
-        
+
         # subsampling and train test split will happen on a per file basis
         for hdf5 in hdf5_list:
             with h5py.File(hdf5, 'r') as f:
@@ -113,11 +114,12 @@ def setup_training_from_config(
     test_spectra = test_spectra.to(torch.float32)
 
     odl = dataloader_from_config(
-        config, 
+        config,
         FloatTensor(train_spectra),
         LongTensor(train_labels.to(dtype=torch.long)),
         batch_size,
         shuffle,
+        return_fractions,
         misc_dataloader_params,
     )
 
