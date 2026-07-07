@@ -113,7 +113,7 @@ def run_simulation(
             filtered_n_components_per_class = (cumsum_n_components[:, 1:] - cumsum_n_components[:, :-1]).to(dtype=torch.int16, device=device) #type: ignore
 
             # Sum the Dirichlet fractions by class for each row, then look at the target class.
-            fracs_by_class = get_fractions_by_class(filtered_n_components_per_class, classes, dirich_fractions)
+            fracs_by_class = get_fractions_by_class(filtered_n_components_per_class, classes, dirich_fractions, sim_args.n_classes)
 
             keep_rows = ((fracs_by_class[:, force_class] >= lo) & (fracs_by_class[:, force_class] <= hi))
 
@@ -162,6 +162,7 @@ def run_simulation(
                 filtered_n_components_per_class,
                 classes,
                 dirich_fractions,
+                sim_args.n_classes,
             )
             return resulting_real_spectra, classes.long(), fracs_by_class # type: ignore[return-value]
         return resulting_real_spectra, classes.long(), None # type: ignore[return-value]
@@ -404,13 +405,14 @@ def make_positive_definite(A: Tensor, min_eigen=1e-8) -> FloatTensor:
 
 
 def get_fractions_by_class(
-        filtered_n_components_per_class: ShortTensor, 
+        filtered_n_components_per_class: ShortTensor,
         classes: CharTensor,
         dirich_fractions: FloatTensor,
+        num_classes: int,
 
     ) -> FloatTensor:
     # Returns a (n_iter, n_classes) matrix of the sum of dirichlet constributions per class
-    
+
     # first get the dirichlet fractions by number of components
     n_iters, n_classes_per_sim = filtered_n_components_per_class.shape
     n_max_sim_comps = dirich_fractions.size(1)
@@ -424,7 +426,6 @@ def get_fractions_by_class(
     # then assign each of those to a class (one-hot)
     valid = classes >= 0
     cls = classes.clamp_min(0)
-    num_classes = int(cls[valid].max().item()) + 1 if valid.any() else 0
     result = summed_fracs.new_zeros(summed_fracs.size(0), num_classes)
     result.scatter_add_(1, cls.to(dtype=torch.int32), summed_fracs * valid)
 
