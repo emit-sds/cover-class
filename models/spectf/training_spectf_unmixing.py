@@ -224,6 +224,7 @@ def run_pipeline_unmixing(
     )
 
     # For binary metrics, convert fractions to binary using min_frac threshold
+    simulation_y_fractions = simulation_y_fractions.cpu().numpy()
     simulation_y_test_binary = (simulation_y_fractions >= min_frac_threshold).astype(float)
 
     report = Report(
