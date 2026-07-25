@@ -35,15 +35,25 @@ def load_rfl(hdr_fp:str) -> Tuple[np.ndarray, np.ndarray]:
     banddef = np.array(banddef, dtype=float) # type: ignore 
     return rfl, banddef # type: ignore 
 
-def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_missed_class: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
+def ood_test_set_from_config(
+        c: str|Dict,
+        include_unknown: bool = False,
+        err_on_missed_class: bool = True,
+        key: str = 'ood-test-set',
+        unknown_fill: float = float('nan'),
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Load the OOD test set from a configuration file.
+    Load an OOD set (test or train) from a configuration file.
 
     Args:
-        c: Config file path or a dictionary containing 'datasets' and 'ood-test-set'.
-        include_unknown: If True, samples with label 2 (unknown) are included and treated as present.
-                        If False, any sample with a label 2 is discarded from the dataset.
+        c: Config file path or a dictionary containing 'datasets' and the OOD set path.
+        include_unknown: If True, samples with label 2 (unknown) are treated as present (1).
+                        If False, label 2 is replaced with `unknown_fill` so it can be masked out.
         err_on_missed_class: If True, raises a RuntimeError if a class specified in the config is missing from the OOD set.
+        key: The config key holding the OOD set path (e.g. 'ood-test-set' or 'ood-train-set').
+        unknown_fill: The value used to fill unknown (label 2) entries when include_unknown is False.
+                      NaN for the test set (already masked in eval); -1 for the train set so those
+                      entries can be masked out of the loss during backprop.
 
     Returns:
         A tuple containing:
@@ -53,7 +63,7 @@ def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_
     config = read_config(c)
     class_order: List[str] = [d for d in config['datasets'].keys() if config['datasets'][d] is not None]
 
-    with h5py.File(config['ood-test-set'], 'r') as f:
+    with h5py.File(config[key], 'r') as f:
         labels = np.asarray(f['labels'][:])
         spectra = np.asarray(f['spectra'][:])
         classes = np.asarray(f.attrs['classes'][:]).astype(str) # type: ignore
@@ -68,7 +78,7 @@ def ood_test_set_from_config(c: str|Dict, include_unknown: bool = False, err_on_
             if include_unknown:
                 Y_np[:, i] = np.where(class_labels == 2, 1, class_labels)
             else:
-                Y_np[:, i] = np.where(class_labels == 2, np.nan, class_labels)
+                Y_np[:, i] = np.where(class_labels == 2, unknown_fill, class_labels)
             if err_on_missed_class and not np.any(Y_np[:, i] == 1):
-                raise RuntimeError(f"No data is found in the OOD Test set for class: '{name}'")
+                raise RuntimeError(f"No data is found in the OOD set for class: '{name}'")
         return X, torch.from_numpy(Y_np).to(torch.float32)

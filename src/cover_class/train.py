@@ -9,7 +9,7 @@ import numpy as np
 from datetime import datetime
 
 from cover_class.dataloader import dataloader_from_config, OrchestratorDataset
-from cover_class.utils import read_config, seed as sseed
+from cover_class.utils import read_config, seed as sseed, ood_test_set_from_config
 from cover_class.subsample import subsample_from_config, train_test_split, drop_bad_bands, drop_bad_banddef
 from cover_class.simulation import run_simulation, SimulationArgs, DataArgs, one_hot_encode_simulated_data
 from cover_class.static.retrieval import make_hdf5
@@ -71,9 +71,12 @@ def setup_training_from_config(
         run_name: str = '',
         return_fractions: bool = False,
         misc_dataloader_params: dict = {},
+        inject_ood: bool = False,
     ) -> Tuple[DataLoader, FloatTensor, Tensor]:
     """
     :param: simulated_test_set_n_rows = 0 means don't return a simulated set
+    :param: inject_ood if True, load the 'ood-train-set' from the config and inject those
+            real OOD spectra into the training dataloader as-is (unmixed) to induce overfitting.
 
     Returns: A tuple of the training dataloader, the test data matrix, and test labels
     """
@@ -113,6 +116,18 @@ def setup_training_from_config(
     train_spectra = train_spectra.to(torch.float32)
     test_spectra = test_spectra.to(torch.float32)
 
+    ood_spectra, ood_labels = None, None
+    if inject_ood:
+        # Unknown (label 2) entries become -1 so they can be masked out of the loss during backprop.
+        ood_spectra, ood_labels = ood_test_set_from_config(
+            config,
+            include_unknown=False,
+            err_on_missed_class=False,
+            key='ood-train-set',
+            unknown_fill=-1.0,
+        )
+        ood_spectra = FloatTensor(ood_spectra.to(torch.float32))
+
     odl = dataloader_from_config(
         config,
         FloatTensor(train_spectra),
@@ -121,6 +136,8 @@ def setup_training_from_config(
         shuffle,
         return_fractions,
         misc_dataloader_params,
+        ood_spectra=ood_spectra,
+        ood_labels=ood_labels,
     )
 
     return odl, FloatTensor(test_spectra), test_labels
