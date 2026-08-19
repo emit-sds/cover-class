@@ -34,7 +34,7 @@ class TestDataset(Dataset):
 
         self.test_X = test_X
         self.test_Y = test_Y
-    
+
     def __len__(self):
         return len(self.test_Y)
 
@@ -122,13 +122,16 @@ def run_pipeline_classifier(
     with open(model_config, 'r', encoding='utf-8') as f:
         m_config = yaml.safe_load(f)
 
+    # inject_ood pulls the 'ood-train-set' spectra into the training dataloader as-is
+    # (unmixed, real labels) to intentionally induce overfitting on OOD data.
     dataloader, test_X, test_Y = setup_training_from_config(
         data_config,
         m_config['batch_size'],
         shuffle=True,
         seed=m_config['random_seed'],
         subsampled_files_outdir=outdir,
-        misc_dataloader_params={'num_workers': m_config['training']['num_workers']})
+        misc_dataloader_params={'num_workers': m_config['training']['num_workers']},
+        inject_ood=True)
 
     banddef = banddef_from_config(data_config)
 
@@ -186,6 +189,7 @@ def run_pipeline_classifier(
             "simulated_test_set_size": simulated_test_set_size,
             "focal_alpha": focal_alpha,
             "focal_gamma": focal_gamma,
+            "inject_ood": True,
         },
         settings=wandb.Settings(_service_wait=300)
     )
@@ -232,7 +236,10 @@ def run_pipeline_classifier(
 
             optimizer.zero_grad()
             logits = model(batch_X)
-            loss = criterion(logits, batch_Y)
+            # Injected OOD spectra carry a -1 sentinel for unknown/ambiguous entries;
+            # mask those out so they don't contribute to the loss during backprop.
+            mask = batch_Y >= 0
+            loss = criterion(logits[mask], batch_Y[mask])
             loss.backward()
             optimizer.step()
 
@@ -301,7 +308,7 @@ def run_pipeline_classifier(
         for f in _figs: plt.close(f)
         del _figs
 
-        # Extract the thresholds used for the test set 
+        # Extract the thresholds used for the test set
         test_thresholds = [test_metrics[class_name]['Threshold'] for class_name in class_names]
 
         # Calculate OOD validation set metrics using the test set thresholds
