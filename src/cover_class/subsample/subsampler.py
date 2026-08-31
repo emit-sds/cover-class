@@ -5,10 +5,9 @@ import torch
 from numpy.typing import NDArray
 import numpy as np
 from scipy.spatial import ConvexHull # type: ignore[import]
-from sklearn_extra.cluster import KMedoids # type: ignore[import]
+from kmedoids import KMedoids # type: ignore[import]
 from sklearn.cluster import KMeans # type: ignore[import]
 from sklearn.decomposition import PCA # type: ignore[import]
-from scipy.spatial.distance import mahalanobis # type: ignore[import]
 
 '''
 All functions in this file are meant to be used on a per-class basis
@@ -36,15 +35,32 @@ def convex_hull(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **k
 
 
 def kmedoids(data_matrix: NDArray[np.float32], num_pc:int, n_samples:int, **kwargs) -> FloatTensor:
-    ''' NOTE: this is only for Euclidean distances '''
+    '''
+    K-medoids subsampling in PCA space, backed by the `kmedoids` package.
+
+    Defaults to the FasterPAM algorithm (`method="fasterpam"`), which yields
+    substantially better clusterings than the k-means-style "alternate" method
+    at comparable cost. The package's `method`/`init`/`max_iter`/`random_state`
+    kwargs may be passed through via the config.
+
+    Supports Euclidean (default) and Mahalanobis distances; pass
+    `metric="mahalanobis"` to compute the Mahalanobis metric in PCA space.
+    '''
     n_samples = min(len(data_matrix), n_samples)
     pca = PCA(n_components=num_pc, svd_solver="arpack", random_state=0)
     Z_c = pca.fit_transform(data_matrix)
+
+    # Drop keys left empty in the YAML config so package defaults apply.
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    kwargs.setdefault("method", "fasterpam")
+    # The package defaults to metric="precomputed" (expects an n x n distance
+    # matrix); we always pass raw PCA data, so default to euclidean instead.
+    kwargs.setdefault("metric", "euclidean")
+
     if kwargs.get("metric", None) == "mahalanobis":
         VI = np.linalg.inv(np.cov(Z_c, rowvar=False))
-        def maha(u, v, VI=VI): 
-            return mahalanobis(u, v, VI)
-        kwargs["metric"] = maha
+        kwargs["metric_params"] = {"VI": VI}
+
     centroids_idx = KMedoids(n_clusters=n_samples, **kwargs).fit(Z_c).medoid_indices_
     return FloatTensor(torch.from_numpy(data_matrix[centroids_idx]).to(torch.float32))
 

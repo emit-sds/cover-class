@@ -79,9 +79,9 @@ subsample:
     algorithm: lloyd
   kmedoids:
     num_pc: 4
-    n_samples: 10
-    method: alternate
-    init: k-medoids++
+    n_samples: 100
+    method: fasterpam
+    init: build
     max_iter: 300
     random_state: 2345
     metric: mahalanobis
