@@ -1,0 +1,12 @@
+# SpecTf encoder architecture (see spectf.model.SpecTfEncoder).
+# dim_output is set from the number of classes at runtime; the value here is a
+# default/documentation only.
+model:
+  dim_output: 5
+  num_heads: 32
+  dim_proj: 128
+  dim_ff: 512
+  dropout: 0.05
+  agg: "mean"
+  use_residual: false
+  num_layers: 2
