@@ -42,21 +42,38 @@ class TestDataset(Dataset):
         return self.test_X[idx], self.test_Y[idx]
 
 
-class FocalLoss(nn.Module):
+class FocalCategoricalCrossEntropy(nn.Module):
     def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
-        super(FocalLoss, self).__init__()
+        super(FocalCategoricalCrossEntropy, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
 
     def forward(self, inputs, targets):
-        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
-        pt = torch.exp(-bce_loss)
-        focal_loss = ((1 - pt) ** self.gamma) * bce_loss
+        # inputs: (batch_size, n_classes) logits (pre-softmax)
+        # targets: (batch_size, n_classes) fractional ground truth (sum to 1)
 
+        # Compute log softmax
+        log_probs = F.log_softmax(inputs, dim=-1)
+
+        # Standard categorical cross-entropy: -sum(target * log_prob)
+        ce_loss = -(targets * log_probs).sum(dim=-1)
+
+        # Compute p_t for focal weighting
+        probs = torch.exp(log_probs)
+        p_t = (targets * probs).sum(dim=-1)  # Probability assigned to true distribution
+
+        # Focal weight: (1 - p_t)^gamma
+        focal_weight = (1 - p_t) ** self.gamma
+
+        # Apply focal weight
+        focal_loss = focal_weight * ce_loss
+
+        # Apply alpha weighting if specified
         if self.alpha is not None:
-            alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
-            focal_loss = alpha_t * focal_loss
+            # Weight by target distribution's average confidence
+            alpha_weight = self.alpha * targets.max(dim=-1)[0] + (1 - self.alpha) * (1 - targets.max(dim=-1)[0])
+            focal_loss = alpha_weight * focal_loss
 
         if self.reduction == 'mean':
             return focal_loss.mean()
@@ -64,6 +81,7 @@ class FocalLoss(nn.Module):
             return focal_loss.sum()
 
         return focal_loss
+
 
 @click.command()
 @click.option(
@@ -110,7 +128,7 @@ class FocalLoss(nn.Module):
     help="Focal loss gamma parameter.",
     envvar=f'{ENV_VAR_PREFIX}_FOCAL_GAMMA'
 )
-def run_pipeline_classifier(
+def run_pipeline_unmixing(
         outdir: str,
         data_config: str,
         model_config: str,
@@ -122,25 +140,31 @@ def run_pipeline_classifier(
     with open(model_config, 'r', encoding='utf-8') as f:
         m_config = yaml.safe_load(f)
 
-    # inject_ood pulls the 'ood-train-set' spectra into the training dataloader as-is
-    # (unmixed, real labels) to intentionally induce overfitting on OOD data.
+    # Load data config to get min_frac threshold
+    with open(data_config, 'r', encoding='utf-8') as f:
+        d_config = yaml.safe_load(f)
+
+    min_frac_threshold = d_config.get('simulation', {}).get('min_frac', 0.2)
+
     dataloader, test_X, test_Y = setup_training_from_config(
         data_config,
         m_config['batch_size'],
         shuffle=True,
         seed=m_config['random_seed'],
         subsampled_files_outdir=outdir,
-        misc_dataloader_params={'num_workers': m_config['training']['num_workers']},
-        inject_ood=True)
+        return_fractions=True,  # Enable fraction mode
+        misc_dataloader_params={'num_workers': m_config['training']['num_workers']})
 
     banddef = banddef_from_config(data_config)
 
     # create simulation eval set
     sseed(m_config['random_seed'])
-    simulation_x_test, simulation_y_test, _ = make_simulation_test_set(dataloader, test_X, test_Y, simulated_test_set_size)
+    simulation_x_test, simulation_y_labels, simulation_y_fractions = make_simulation_test_set(
+        dataloader, test_X, test_Y, simulated_test_set_size, one_hot_encode=False
+    )
 
     # Test set dataloader
-    test_dataset = TestDataset(simulation_x_test, simulation_y_test)
+    test_dataset = TestDataset(simulation_x_test, simulation_y_fractions)
     test_dataloader = DataLoader(test_dataset, batch_size=m_config['batch_size'], shuffle=False)
 
     # Validation set dataloader for OOD evaluation
@@ -162,12 +186,16 @@ def run_pipeline_classifier(
                          use_residual=m_config['model']['use_residual'],
                          num_layers=m_config['model']['num_layers']).to(device)
 
-    # criterion = nn.BCEWithLogitsLoss()
+    # criterion: KLDivLoss or FocalCategoricalCrossEntropy
     alpha_val = None if focal_alpha == "None" else float(focal_alpha)
     if alpha_val is None and focal_gamma == 0.0:
-        criterion = nn.BCEWithLogitsLoss()
+        # Standard categorical cross-entropy (via KLDivLoss)
+        # Note: KLDivLoss expects log-probabilities as input, so we need log_softmax
+        criterion = nn.KLDivLoss(reduction='batchmean')
+        use_kl_div = True
     else:
-        criterion = FocalLoss(alpha=alpha_val, gamma=focal_gamma)
+        criterion = FocalCategoricalCrossEntropy(alpha=alpha_val, gamma=focal_gamma)
+        use_kl_div = False
 
     optimizer = schedulefree.AdamWScheduleFree(
         (p for p in model.parameters() if p.requires_grad),
@@ -180,7 +208,7 @@ def run_pipeline_classifier(
     run = wandb.init(
         entity=m_config['wandb']['entity'],
         project=m_config['wandb']['project'],
-        name=timestamp,
+        name=f"{timestamp}_unmixing",
         dir='./',
         config={
             "outdir": outdir,
@@ -189,10 +217,15 @@ def run_pipeline_classifier(
             "simulated_test_set_size": simulated_test_set_size,
             "focal_alpha": focal_alpha,
             "focal_gamma": focal_gamma,
-            "inject_ood": True,
+            "min_frac_threshold": min_frac_threshold,
+            "task": "unmixing"
         },
         settings=wandb.Settings(_service_wait=300)
     )
+
+    # For binary metrics, convert fractions to binary using min_frac threshold
+    simulation_y_fractions = simulation_y_fractions.cpu().numpy()
+    simulation_y_test_binary = (simulation_y_fractions >= min_frac_threshold).astype(float)
 
     report = Report(
         outdir=outdir,
@@ -207,10 +240,11 @@ def run_pipeline_classifier(
                 "optimizer": optimizer.__class__.__name__,
                 "focal_alpha": alpha_val,
                 "focal_gamma": focal_gamma,
+                "min_frac_threshold": min_frac_threshold,
                 "params": m_config['model']
             },
         ),
-        Y_test=simulation_y_test,
+        Y_test=simulation_y_test_binary,
         Y_ood_test=ood_test_set_y,
         random_seed=m_config['random_seed'],
         run_name=timestamp
@@ -236,10 +270,14 @@ def run_pipeline_classifier(
 
             optimizer.zero_grad()
             logits = model(batch_X)
-            # Injected OOD spectra carry a -1 sentinel for unknown/ambiguous entries;
-            # mask those out so they don't contribute to the loss during backprop.
-            mask = batch_Y >= 0
-            loss = criterion(logits[mask], batch_Y[mask])
+
+            if use_kl_div:
+                # KLDivLoss expects log-probabilities as input
+                log_probs = F.log_softmax(logits, dim=-1)
+                loss = criterion(log_probs, batch_Y)
+            else:
+                loss = criterion(logits, batch_Y)
+
             loss.backward()
             optimizer.step()
 
@@ -261,7 +299,7 @@ def run_pipeline_classifier(
         # Test loop
         model.eval()
         optimizer.eval()
-        y_hat = np.zeros_like(simulation_y_test, dtype=float)
+        y_hat_fractions = np.zeros_like(simulation_y_fractions, dtype=float)
         test_loss_sum = 0.0
         test_batches = 0
         for i, (batch_X, batch_Y) in enumerate(test_dataloader):
@@ -270,16 +308,27 @@ def run_pipeline_classifier(
             batch_Y = batch_Y.to(device=device, dtype=torch.float32)
             with torch.no_grad():
                 logits = model(batch_X)
-                batch_loss = criterion(logits, batch_Y)
+
+                if use_kl_div:
+                    log_probs = F.log_softmax(logits, dim=-1)
+                    batch_loss = criterion(log_probs, batch_Y)
+                else:
+                    batch_loss = criterion(logits, batch_Y)
+
                 test_loss_sum += batch_loss.cpu().item()
                 test_batches += 1
-                batch_y_hat = torch.sigmoid(logits)
+
+                # Apply softmax to get fractions
+                batch_y_hat = torch.softmax(logits, dim=-1)
                 batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
                 batch_len = len(batch_y_hat)
-                y_hat[i*bs:i*bs+batch_len] = batch_y_hat
+                y_hat_fractions[i*bs:i*bs+batch_len] = batch_y_hat
         avg_test_loss = test_loss_sum / test_batches if test_batches > 0 else float('nan')
 
-        # OOD loop
+        # Convert fractions to binary for metrics
+        y_hat_binary = (y_hat_fractions >= min_frac_threshold).astype(float)
+
+        # OOD loop - still uses binary targets
         y_hat_ood = np.zeros_like(ood_test_set_y, dtype=float)
         ood_loss_sum = 0.0
         ood_batches = 0
@@ -289,22 +338,22 @@ def run_pipeline_classifier(
             batch_Y = batch_Y.to(device=device, dtype=torch.float32)
             with torch.no_grad():
                 logits = model(batch_X)
-                mask = ~torch.isnan(batch_Y)
-                if mask.any():
-                    batch_loss = criterion(logits[mask], batch_Y[mask])
-                    ood_loss_sum += batch_loss.cpu().item()
-                    ood_batches += 1
-                batch_y_hat = torch.sigmoid(logits)
+
+                # For OOD, we don't have fractions, so skip loss computation
+                # (or treat it as binary classification)
+
+                # Apply softmax to get fractions
+                batch_y_hat = torch.softmax(logits, dim=-1)
                 batch_y_hat = batch_y_hat.detach().cpu().numpy().astype(float)
                 batch_len = len(batch_y_hat)
                 y_hat_ood[i*bs:i*bs+batch_len] = batch_y_hat
 
-        avg_ood_loss = ood_loss_sum / ood_batches if ood_batches > 0 else float('nan')
-
+        # Apply threshold to OOD predictions for binary metrics
+        y_hat_ood_binary = (y_hat_ood >= min_frac_threshold).astype(float)
 
         # Calculate test set metrics using the best thresholds for the test set
         _figs = []
-        test_metrics = report.generate_metrics(simulation_y_test, y_hat, None, _figs, class_names)
+        test_metrics = report.generate_metrics(simulation_y_test_binary, y_hat_binary, None, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
@@ -313,7 +362,7 @@ def run_pipeline_classifier(
 
         # Calculate OOD validation set metrics using the test set thresholds
         _figs = []
-        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood, test_thresholds, _figs, class_names)
+        ood_metrics = report.generate_metrics(ood_test_set_y, y_hat_ood_binary, test_thresholds, _figs, class_names)
         for f in _figs: plt.close(f)
         del _figs
 
@@ -322,12 +371,11 @@ def run_pipeline_classifier(
             "ood_metrics": ood_metrics,
             "epoch": epoch,
             "loss_test_epoch": avg_test_loss,
-            "loss_ood_epoch": avg_ood_loss
         })
 
     # Generate report at end of training
-    report.make_report(y_hat, y_hat_ood, None, ood_overfit=False)
+    report.make_report(y_hat_binary, y_hat_ood_binary, None, ood_overfit=False)
 
 if __name__ == "__main__":
     # pylint: disable=no-value-for-parameter
-    run_pipeline_classifier()
+    run_pipeline_unmixing()
