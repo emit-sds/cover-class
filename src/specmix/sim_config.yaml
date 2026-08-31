@@ -1,0 +1,78 @@
+# Default mixture-simulator config. See specmix/simulator.py for how each field
+# is consumed. Copy this file and pass the path to MixtureSimulator(config=...)
+# to customize.
+#
+# Paths: `priors_csv` and `noise.covariance_csv` are bundled with the package
+# (resolved inside specmix/data/). Endmember HDF5s are external, resolved against
+# the simulator's data_root ($SPECMIX_DATA_ROOT or the CWD; the repo root has
+# `datasets/`).
+
+# Canonical class axis. Order must match the class columns in priors_csv and sets
+# the order of the returned fraction vector.
+classes: [water, pv, npv, soil, snow+ice]
+
+# Endmember HDF5s per class (285-band raw grid + a per-row `source` dataset).
+# Multi-file classes are concatenated (e.g. soil = soil + rock).
+endmembers:
+  soil:     [datasets/emit-endmembers/soil_soil.hdf5, datasets/emit-endmembers/rock_rock.hdf5]
+  pv:       [datasets/emit-endmembers/pv_pv.hdf5]
+  npv:      [datasets/emit-endmembers/npv_npv.hdf5]
+  snow+ice: [datasets/emit-endmembers/snow+ice_snow+ice.hdf5]
+  water:    [datasets/emit-endmembers/water_water.hdf5]
+
+# Bad-band drop ranges (nm, inclusive): blue edge, two water-vapor features,
+# far-SWIR edge. Drops the 285-band raw grid to the 207 good bands used by the
+# labeled validation set and the noise covariance.
+drop_wl_ranges: [[0, 440], [1310, 1490], [1770, 2050], [2440, 2880]]
+
+priors_csv: data/mixture_priors.csv
+
+mixing:
+  # Number of endmembers mixed within each class (uniform choice from the list,
+  # capped at the class's subsample size). >1 fills the space between pure
+  # endmembers with intra-class mixtures.
+  n_components:
+    soil:     [1, 2, 3]
+    pv:       [1, 2, 3]
+    npv:      [1, 2, 3]
+    snow+ice: [1, 2, 3]
+    water:    [1, 2, 3]
+  intraclass_floor: 0.0       # per-component floor within a class (0 = plain Dirichlet)
+  interclass_min_frac: 0.05   # a present class must cover >= this fraction of the pixel
+  # Dirichlet concentration for the inter-class fractions. Scalar = fixed; a
+  # [low, high] range is drawn uniformly per mixture. a<1 => one class dominates
+  # (imbalanced), a=1 => uniform over the simplex, a>1 => even/balanced splits.
+  interclass_alpha: [0.3, 3.0]
+
+augment:
+  # Per-class brightness multiplier ranges, applied to each class's intra-class
+  # mix before inter-class mixing. Drawn ~ Uniform(low, high) per spectrum.
+  albedo:
+    pv:       [0.30, 0.70]
+    snow+ice: [0.90, 1.50]
+    water:    [0.90, 1.10]
+    soil:     [0.80, 1.20]
+    npv:      [0.20, 0.70]
+  magnitude_max: 1.2          # cap the multiplier so no band exceeds this
+  glint:                      # additive wavelength-flat offset (sun/sky glint)
+    classes: [water]
+    range: [0.0, 0.10]
+  # Whole-pixel illumination scalar on the finished mixture. [1, 1] = off.
+  global_illumination: [1.0, 1.0]
+
+noise:
+  covariance_csv: data/spectral_covariances_no_header_v2.csv  # 207x207 band covariance Σ
+  white_floor_std: 0.0001             # always-on, signal-independent read/dark floor
+  covariance_scalar: 0.3              # gain on the correlated (Σ) term
+  covariance_brightness_scaled: true  # scale the correlated term by pixel mean reflectance
+
+subsample:
+  method: v2                      # random | convex | kmedoids | v2
+  # Only the selected method's block is read.
+  v2:       {quota_per_source: 10, num_pc: 4, single_source_n: 50}  # single-source classes fall back to random
+  kmedoids: {n_samples: 100, num_pc: 4, method: fasterpam, metric: mahalanobis}
+  convex:   {n_samples: 100, num_pc: 4}
+  random:   {n_samples: 50}
+
+dataset:
+  epoch_size: 100000              # __len__ of the map-style Dataset
