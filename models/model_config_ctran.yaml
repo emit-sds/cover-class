@@ -1,0 +1,22 @@
+# SpecTf architecture with C-Tran-style pooling
+# (see spectf.model.SpecTfLabelQueryEncoder).
+# One learned query vector per class, cross-attended into the encoder's
+# token sequence, with an independent per-class head weight. Queries also
+# self-attend to each other every pooling layer (use_self_attn: true),
+# letting the model learn label co-occurrence structure (e.g. soil and pv
+# commonly co-occurring) directly in the pooling step. See
+# model_config_q2l.yaml for the plain Query2Label variant.
+#
+# dim_output is set from the number of classes at runtime; the value here is
+# a default/documentation only.
+model:
+  type: "label_query"
+  dim_output: 5
+  num_heads: 32
+  dim_proj: 128
+  dim_ff: 512
+  dropout: 0.05
+  use_residual: false
+  num_layers: 2
+  num_pool_layers: 1
+  use_self_attn: true

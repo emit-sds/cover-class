@@ -1,7 +1,15 @@
-# SpecTf encoder architecture (see spectf.model.SpecTfEncoder).
+# SpecTf encoder architecture (see spectf.model.SpecTfEncoder and
+# spectf.model.SpecTfLabelQueryEncoder).
 # dim_output is set from the number of classes at runtime; the value here is a
 # default/documentation only.
+#
+# type: "mean_pool" uses SpecTfEncoder with shared mean/max/flat pooling (agg).
+#       "label_query" uses SpecTfLabelQueryEncoder: one learned query per
+#       class cross-attended into the encoder tokens, with an independent
+#       per-class head weight (Query2Label if use_self_attn is false, C-Tran
+#       if true). agg is ignored for this type.
 model:
+  type: "mean_pool"
   dim_output: 5
   num_heads: 32
   dim_proj: 128
@@ -10,3 +18,5 @@ model:
   agg: "mean"
   use_residual: false
   num_layers: 2
+  num_pool_layers: 1
+  use_self_attn: false

@@ -24,7 +24,6 @@ import rich_click as click
 import numpy as np
 
 from specmix import MixtureDataset, fractions_to_presence
-from spectf.model import SpecTfEncoder
 from spectf.utils import get_device
 
 try:

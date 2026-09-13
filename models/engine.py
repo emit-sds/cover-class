@@ -25,7 +25,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from specmix import numpy_collate, fractions_to_presence
-from spectf.model import SpecTfEncoder
+from spectf.model import SpecTfEncoder, SpecTfLabelQueryEncoder
 
 try:
     from models.losses import FocalLoss, FocalCategoricalCrossEntropy
@@ -102,14 +102,34 @@ def make_taskspec(task, n_classes, cfg, min_frac):
 
 # ------------------------------------------------------------ model plumbing --
 def build_model(model_cfg, wavelengths, n_classes, device):
-    """Construct a SpecTfEncoder with the banddef from `wavelengths`."""
+    """Construct a SpecTf model with the banddef from `wavelengths`.
+
+    `model_cfg["model"]["type"]` selects the architecture:
+    - "mean_pool" (default): SpecTfEncoder, shared mean/max/flat pooling.
+    - "label_query": SpecTfLabelQueryEncoder, one learned query per class
+      (Query2Label, or C-Tran if use_self_attn is true).
+    """
     banddef = torch.tensor(np.asarray(wavelengths), dtype=torch.float32, device=device)
     mp = model_cfg["model"]
-    model = SpecTfEncoder(banddef, dim_output=n_classes, num_heads=mp["num_heads"],
-                          dim_proj=mp["dim_proj"], dim_ff=mp["dim_ff"],
-                          dropout=mp["dropout"], agg=mp["agg"],
-                          use_residual=mp["use_residual"],
-                          num_layers=mp["num_layers"]).to(device)
+    model_type = mp.get("type", "mean_pool")
+
+    if model_type == "mean_pool":
+        model = SpecTfEncoder(banddef, dim_output=n_classes, num_heads=mp["num_heads"],
+                              dim_proj=mp["dim_proj"], dim_ff=mp["dim_ff"],
+                              dropout=mp["dropout"], agg=mp["agg"],
+                              use_residual=mp["use_residual"],
+                              num_layers=mp["num_layers"]).to(device)
+    elif model_type == "label_query":
+        model = SpecTfLabelQueryEncoder(banddef, dim_output=n_classes, num_heads=mp["num_heads"],
+                                        dim_proj=mp["dim_proj"], dim_ff=mp["dim_ff"],
+                                        dropout=mp["dropout"],
+                                        use_residual=mp["use_residual"],
+                                        num_layers=mp["num_layers"],
+                                        num_pool_layers=mp["num_pool_layers"],
+                                        use_self_attn=mp["use_self_attn"]).to(device)
+    else:
+        raise ValueError(f"Unknown model type {model_type!r}")
+
     return model
 
 
