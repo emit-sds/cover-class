@@ -47,7 +47,9 @@ Each run writes to `outdir` (default `models/runs/`, gitignored):
 
 - `model_epoch<N>.pth` — checkpoints (already the schedule-free **averaged**,
   deployable weights; no optimizer state to strip).
-- `SpecTfEncoder_<timestamp>_<task>.md` / `.json` — metric tables.
+- `<model>_<timestamp>_<task>.md` / `.json` — metric tables (the `<model>`
+  prefix is the model class name, e.g. `SpecTfEncoder` or
+  `SpecTfLabelQueryEncoder` depending on the architecture).
 - ROC / confusion / regression figures (PNG).
 
 Per epoch, scalar metrics are logged to W&B for three regimes:

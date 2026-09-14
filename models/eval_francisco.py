@@ -169,7 +169,7 @@ def main(train_config, weights, task, outdir, thresholds):
         sections.append(_classification_section(probs3, F, min_frac, figs,
                                                  thresholds=thr_list))
 
-    basename = f"francisco_{task}_{os.path.splitext(os.path.basename(weights))[0]}"
+    basename = f"francisco_{model.__class__.__name__}_{task}_{os.path.splitext(os.path.basename(weights))[0]}"
     md_path = R.write_report(sections, outdir, basename,
                              title=f"Francisco eval ({task}) — {os.path.basename(weights)}")
     json_path = R.write_json(sections, outdir, basename)
