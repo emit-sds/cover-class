@@ -1,145 +1,116 @@
-# Package
+# specmix — EMIT spectral mixing simulator
 
-## Installation
+Simulate realistic EMIT hyperspectral **mixtures** from pure-endmember spectral
+libraries, to generate training data for **fractional cover unmixing** of 5
+classes: PV, NPV, Soil, Snow+Ice, Water.
 
-## Example Usage
-### Train Time
-```
-from cover_class.train import setup_training_from_config
+Training data with known fractions is infeasible to collect from real scenes, so
+we build it: sample a class-presence pattern, mix within and between classes,
+apply per-class brightness/glint augmentation, and add instrument noise. Each
+call returns one `(spectra, fractions)` pair — `fractions` is the regression
+target; binarizing to class presence is left to the caller.
 
-dataloader, X_test, Y_test = setup_training_from_config(
-    '/my/path/config.yaml',
-    batch_size,
-    shuffle = True,
-)
-```
+## Install
 
-To get the dirichlet fractions, after every iteration, check `dataloader.dataset.batch_dirichlet_fraction_store` for the fractions. (Assuming that `simulation.return_fractions` was set to `true` in dataloader.yml)
-
-To generate a simulated test set:
-```
-from cover_class.train import make_simulation_test_set
-
-simulated_test_data, simulated_test_labels, simulated_test_fractions = make_simulation_test_set(
-    dataloader,
-    real_test_data, 
-    real_test_labels,
-    simulated_test_set_n_rows = <some_number>,
-    seed = 42,
-)
+```bash
+pip install -e .            # core (numpy/scipy/sklearn/h5py/pyyaml/pandas/kmedoids)
+pip install -e ".[torch]"   # + PyTorch, to use MixtureDataset with a DataLoader
+pip install -e ".[viz]"     # + matplotlib, for the eval / experiment plots
 ```
 
-### Static Dataset Processing
-This is to demonstrate how to create a standardized set of HDF5 datasets for training.
-It gets the data matrix from a supported CSV format from either a VFS or downloaded through the network.
-```
-from cover_class.static.retrieval import generate_hdf5_from_config
-generate_hdf5_from_config('/path/to/my/config.yml')
-```
+## Usage
 
-### Reporting
-Post-training, it is useful to standardize the training and evaluation metadata and metrics. As such, this `cover-class` repository offers a function to automatically generate a PDF report to compare against other models.
-Takes in:
-- Model:
-    - a model configuration with the model itself
-    - a dictionary of hyperparameter configs
-- Training:
-    - a dictionary to turn into a JSON
-    - a dictionary to turn into plots
-    - a list of self-made matplotlib figures to include
-- Evaluation:
-    - a dictionary to turn into a JSON
-    - a dictionary to turn into plots
-    - a list of self-made matplotlib figures to include
-- A number of other parameters to properly generate the report
+```python
+import numpy as np
+from specmix import MixtureSimulator
 
-> [!IMPORTANT]
-> It's important to instantiate the `Report` object **before** the training loop as it'll do a number of checks, allowing for early failure before the training loop.
-
-> [!IMPORTANT]
-> This report relies on setting up a `.netrc` file in the `cover-class/src/cover_class/reporting/assets/.netrc` file path. There's no real good way to avoid it. When a `Report` object is instantiated, the control logic will try to download the qualitative assessment files, so there will be an early error if this is not possible. The file download only occurs whenever there aren't the detected files in `cover-class/src/cover_class/reporting/qualitative`.
-> Steps:
-> 1. Set up an account at [https://urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov)
-> 2. Copy your username and password to replace `example@email.com` and `mySuperSecurePassword123` in `cover-class/src/cover_class/reporting/assets/.netrc`.
-
-Example of generating a report:
-```
-# the dataloader, and train/test sets have been generated already
-
-model = ...
-dataloader = ...
-test_data, test_labels = ...
-
-from cover_class.reporting import ModelConfig, Report
-
-report = Report(
-        outdir=".",
-        config="/path/to/dataloader.yml",
-        author="Shun-Ichi Amari",
-        model_config=ModelConfig(
-            model=GPT6(n_channels, classes),
-            model_name="GPT-6",
-            hyperparams={
-                "learning_rate": 0.001,
-                "batch_size": 32,
-                "optimizer": "Muon",
-            },
-        ),
-        Y_test=test_labels,
-        random_seed=42,
-        notes="Welcome to my report!"
-    )
-    
-## Now do the training
-for X, Y in dataloader:
-    model.train()
-
-    ## You can also add in logs to the report
-    report.train_metric_table.update(model.generate_some_step_metric())
-
-## Or add in any figures
-report.train_figures.append(
-    make_some_really_important_figure_I_want_to_show_from_my_training_logs(model, train_data)
-)
-
-## And then add in any testing figures or metrics to the report as well
-report.test_figures.append(
-    some_cool_test_figure_generator_from_my_data(model, test_data)
-)
-report.test_metric_table.update(
-    {'important test metric': generate_test_metric(model, test_data)}
-)
-
-## Finally, generate the report
-with torch.no_grad():
-    y_hat = torch.sigmoid(model(test_data))
-    thresholds = ...
-report.make_report(y_hat, thresholds)
+sim = MixtureSimulator()                 # packaged default config
+rng = np.random.default_rng(0)
+spectra, fractions = sim.simulate(rng)   # spectra: (207,)  fractions: (5,)
 ```
 
+As a PyTorch dataset:
 
-### Inference Over a Scene From Earth Data Archive
+```python
+from torch.utils.data import DataLoader
+from specmix import MixtureDataset, numpy_collate
 
-> [!IMPORTANT]
-> This report relies on setting up a `.netrc` file in the `cover-class/src/cover_class/reporting/assets/.netrc` file path. There's no real good way to avoid it. When a `Report` object is instantiated, the control logic will try to download the qualitative assessment files, so there will be an early error if this is not possible. The file download only occurs whenever there aren't the detected files in `cover-class/src/cover_class/reporting/qualitative`.
-> Steps:
-> 1. Set up an account at [https://urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov)
-> 2. Copy your username and password to replace `example@email.com` and `mySuperSecurePassword123` in `cover-class/src/cover_class/reporting/assets/.netrc`.
+ds = MixtureDataset(epoch_size=100_000)
+dl = DataLoader(ds, batch_size=256, num_workers=4, collate_fn=numpy_collate)
+for X, F in dl:      # X: (B, 207) reflectance, F: (B, 5) fractions
+    ...
+```
+
+Each item is an independent, reproducible mixture (per-item RNG seeded from
+`(base_seed, worker_id, index)` — no cross-worker collisions).
+
+## Training a model
+
+`specmix` generates the data; the unmixing model that learns from it lives in
+[`models/`](models/README.md) — one entrypoint trains a SpecTf encoder for
+either **classification** (which classes are present) or **regression**
+(per-class fractions), and two eval scripts score checkpoints on the simulation,
+OOD, and Francisco validation sets. See its README for train/eval commands.
+
+## Data root (endmember libraries)
+
+The default config, mixture prior, and noise covariance **ship with the
+package**. The large endmember **HDF5 libraries do not** — they are resolved
+against a *data root*, in this order:
+
+1. `MixtureSimulator(data_root="/path/to/root")`
+2. `$SPECMIX_DATA_ROOT`
+3. the current working directory (so running from the repo root, which contains
+   `datasets/`, just works).
+
+The config references them as e.g. `datasets/emit-endmembers/soil_soil.hdf5`,
+resolved relative to that root.
+
+## Custom config
+
+```python
+sim = MixtureSimulator("my_config.yaml")          # your own copy
+sim = MixtureSimulator(config_dict)               # or an already-loaded dict
+```
+
+Start from `src/specmix/sim_config.yaml` (the packaged default) — it documents
+every field (presence prior, intra/inter-class mixing, augmentation, noise,
+subsampling).
+
+## Self-tests
+
+```bash
+python -m specmix.simulator --selftest     # fraction/pattern/range invariants
+python -m specmix.dataset                  # multi-worker uniqueness + reproducibility
+python -m specmix.mixture_priors           # dump the presence prior
+```
+
+## Repo layout
 
 ```
-from cover_class.utils import read_config
-from cover_class.reporting import download_scenes, inference_over_scene
-
-fid = "EMIT_L2A_RFL_001_20250404T194611_2509413_006"
-scene = f"https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/{fid}/{fid}.nc"
-
-# NOTE: all scenes will be output to `src/cover_class/reporting/qualitative`
-download_scenes([scene])
-
-config = read_config('/Users/makiper/Desktop/emit/cover-class/config/dataloader copy.yml')
-output = inference_over_scene(
-    f"src/cover_class/reporting/qualitative/{fid}.nc",
-    model,
-    config['drop-bands-wavelengths'],
-)
+src/specmix/          the installable simulator package
+  simulator.py          MixtureSimulator (the 7-step pipeline)
+  dataset.py            MixtureDataset + collate/presence helpers
+  bands, augment, noise, subsample, mixture_priors   pipeline components
+  sim_config.yaml       packaged default config
+  data/                 bundled: mixture prior CSV + noise covariance CSV
+models/               train + eval the unmixing model on simulated data (see models/README.md)
+datasets/             external endmember libraries + validation sets (not bundled; see Data root)
 ```
+
+## Simulator pipeline
+
+`MixtureSimulator.simulate` builds one mixture in 7 steps (see `simulator.py`):
+
+1. **presence pattern** — sample which classes are present from the prior;
+2. **intra-class mix** — per present class, pick *k* endmembers and mix them
+   (floor-then-Dirichlet weights);
+3. **augment** — per-class albedo (brightness) scaling + water glint;
+4. **inter-class fractions** — a Dirichlet mix across present classes,
+   constrained so each present class ≥ `interclass_min_frac`;
+5. **global illumination** — a whole-pixel brightness scalar (default OFF);
+6. **noise** — white floor + brightness-scaled covariance noise;
+7. **return** `(spectra (207,), fractions (n_classes,))`.
+
+`sim_config.yaml` documents every field and is the place to change this
+behavior; each step maps to one config block.

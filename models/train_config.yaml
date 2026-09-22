@@ -1,0 +1,49 @@
+# Training configuration for the fractional-cover SpecTf model.
+#
+# Paths (sim_config, model_config, ood_path, outdir) are resolved relative to
+# THIS file's directory when not absolute, so the config is location-stable.
+
+task: classification            # classification | regression
+
+# Referenced configs / data.
+sim_config: ../src/specmix/sim_config.yaml   # specmix simulator config
+model_config: model_config.yaml              # SpecTf architecture
+ood_path: ../datasets/ood/validation_20260317_wfids_noash_goodwl_subsampled.h5
+outdir: ./runs
+
+batch_size: 64
+sim_val_size: 1000            # cached simulation-val eval set size
+# Presence threshold for binarizing fractions -> labels. null => take
+# mixing.interclass_min_frac from the sim config.
+min_frac: null
+mask_ood_ambiguous: true        # OOD label 2 (ambiguous) -> NaN, excluded from metrics
+
+# Endmember train/val split (disjoint halves; see MixtureSimulator split=).
+split_frac: 0.5
+split_seed: 0
+
+loss:
+  focal_alpha: "None"           # "None" disables alpha -> BCE (cls) / KLDiv (reg)
+  focal_gamma: 0.0
+
+training:
+  learning_rate: 0.0001
+  warmup_steps: 10
+  steps_per_epoch: 10
+  total_epochs: 1
+  num_workers: 8
+  checkpoint_every: 1
+  # resample_each_epoch: advance the simulator seed every epoch so the model
+  # sees fresh mixtures each epoch (unique spectra = total_epochs *
+  # steps_per_epoch * batch_size). false = classic fixed dataset, reshuffled.
+  resample_each_epoch: true
+  # epoch_size floors to steps_per_epoch * batch_size; raise only if you want a
+  # larger index pool per epoch (rarely needed with resampling on).
+  epoch_size: null
+
+random_seed: 42
+
+wandb:
+  entity: "jpl-cmml"
+  project: "frac-cover-new"
+  mode: "online"                # online | offline | disabled
