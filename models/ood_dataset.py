@@ -7,11 +7,11 @@ a caller-supplied class axis.
 
 Class-axis remap: the OOD h5 file stores labels in whatever column order its
 `classes` attr says (e.g. `['soil','pv','npv','snow+ice','water']`), which is
-NOT the same order as the simulator's canonical axis (`specmix.sim_config`'s
-`classes: [water, pv, npv, soil, snow+ice]`). `load_ood` looks up each
-caller-requested class name in the file's `classes` attr and reindexes columns
-by name, so the returned Y always matches the caller's `classes` argument
-regardless of how the file happens to store them.
+NOT necessarily the same order as the simulator's canonical axis (the
+`classes:` list in `sim_config.yaml`, e.g. `[soil, pv, npv, snow+ice, water]`).
+`load_ood` looks up each caller-requested class name in the file's `classes`
+attr and reindexes columns by name, so the returned Y always matches the
+caller's `classes` argument regardless of how the file happens to store them.
 
 Label values in the file are {0, 1, 2} = absent / present / ambiguous.
 `mask_ambiguous=True` (default) turns 2 into NaN so ambiguous labels can be
@@ -29,7 +29,7 @@ def load_ood(path, classes, mask_ambiguous=True):
     Args:
         path: path to the OOD h5 file.
         classes: list of class names in the caller's canonical order (the
-            simulator's axis, e.g. ['water','pv','npv','soil','snow+ice']).
+            simulator's axis, e.g. ['soil','pv','npv','snow+ice','water']).
             Output label columns are ordered to match this list.
         mask_ambiguous: if True (default), label value 2 (ambiguous) becomes
             NaN so it can be masked out of per-class metrics later. If False,
@@ -89,8 +89,12 @@ class OODDataset:
 if __name__ == "__main__":
     import os
 
+    from specmix.simulator import DEFAULT_CONFIG
+    import yaml
+
     PATH = "datasets/ood/validation_20260317_wfids_noash_goodwl_subsampled.h5"
-    CLASSES = ["water", "pv", "npv", "soil", "snow+ice"]
+    with open(DEFAULT_CONFIG) as f:
+        CLASSES = list(yaml.safe_load(f)["classes"])
 
     if not os.path.exists(PATH):
         raise SystemExit(f"OOD file not found at {PATH!r}; run from repo root.")

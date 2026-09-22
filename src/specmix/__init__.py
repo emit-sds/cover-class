@@ -15,10 +15,11 @@ Quick start
 
     ds = MixtureDataset(epoch_size=100_000)  # map-style, torch DataLoader-ready
 
-Endmember HDF5s are external (not shipped with the package). They are resolved
-against a data root: pass `data_root=...`, set $SPECMIX_DATA_ROOT, or run from a
-directory that contains `datasets/` (the repo root). The default config, the
-mixture prior, and the noise covariance ARE bundled with the package.
+Endmember HDF5s are external (not shipped with the package). Their paths in
+sim_config.yaml are resolved relative to that config file's own directory (a
+user's copy is a self-contained template pointing at wherever their library
+lives). The default config, the mixture prior, and the noise covariance ARE
+bundled with the package.
 """
 
 from .simulator import MixtureSimulator, DEFAULT_CONFIG

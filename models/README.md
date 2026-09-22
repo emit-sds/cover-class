@@ -122,7 +122,8 @@ ref/                original cover_class-based scripts (reference only; do not r
 
 ## Class-axis alignment
 
-The sim class axis is `[water, pv, npv, soil, snow+ice]`. The model's band
+The sim class axis is `[soil, pv, npv, snow+ice, water]` (from `sim_config.yaml`'s
+`classes:`). The model's band
 definition comes from `MixtureSimulator.wavelengths` (207 good bands),
 guaranteeing it matches the simulated spectra and the OOD grid. OOD ambiguous
 labels (`2`) are masked to NaN and excluded from metrics.

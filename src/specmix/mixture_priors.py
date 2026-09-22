@@ -36,7 +36,11 @@ class MixturePrior:
     """A validated class-presence distribution.
 
     Attributes:
-        classes:      class names, in column order (the canonical class axis).
+        classes:      class names, in the order requested by the caller (or, if
+                      no `classes` was given to `load_mixture_prior`, the CSV's
+                      own column order). The simulator always passes its
+                      `sim_config.yaml`-derived class list, which is the actual
+                      canonical axis; the CSV is matched by name, not position.
         patterns:     (P, n_classes) int8 multi-hot rows, ALLOWED patterns only
                       (weight > 0). Row p, column c == 1 iff class c is present.
         weights:      (P,) int64 un-normalized weights, aligned with `patterns`.

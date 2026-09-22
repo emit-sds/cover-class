@@ -37,27 +37,14 @@ from .mixture_priors import load_mixture_prior
 
 # Directory this package is installed in. Bundled data (default config, priors
 # CSV, noise covariance) is resolved relative to here so the package works from
-# any install location. Large endmember HDF5s are NOT bundled -- they live in an
-# external data root (see `data_root` below).
+# any install location. Large endmember HDF5s are NOT bundled -- their paths in
+# a sim_config.yaml are resolved relative to that config file's own directory.
 PKG_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(PKG_DIR, "data")
 
 #: Packaged default simulator config. `MixtureSimulator()` uses this when no
 #: config is passed.
 DEFAULT_CONFIG = os.path.join(PKG_DIR, "sim_config.yaml")
-
-
-def _resolve_data_root(data_root):
-    """Where external endmember HDF5s (the `datasets/...` paths) are rooted.
-
-    Precedence: explicit arg > $SPECMIX_DATA_ROOT > current working directory
-    (so running from the repo root, where `datasets/` sits, still works)."""
-    if data_root is not None:
-        return os.path.abspath(data_root)
-    env = os.environ.get("SPECMIX_DATA_ROOT")
-    if env:
-        return os.path.abspath(env)
-    return os.getcwd()
 
 
 def _split_indices(n, split, frac, seed):
@@ -86,16 +73,18 @@ def _bundled(p):
 
 
 class MixtureSimulator:
-    def __init__(self, config=None, data_root=None,
+    def __init__(self, config=None,
                  split=None, split_frac=0.5, split_seed=0):
         """config: path to a sim_config.yaml, or an already-loaded dict, or None
         to use the packaged DEFAULT_CONFIG.
 
-        data_root: directory the endmember HDF5 paths in the config are resolved
-        against. Defaults to $SPECMIX_DATA_ROOT, else the current working
-        directory (so running from the repo root, where `datasets/` lives,
-        still works). Bundled data (priors CSV, noise covariance) always ships
-        with the package and is resolved relative to it, regardless of data_root.
+        Endmember HDF5 paths in the config are resolved relative to the config
+        file's own directory (so a user's copy of sim_config.yaml is a
+        self-contained template: point its `endmembers:` entries at wherever
+        their library lives, absolute or relative to that file). A dict config
+        has no file location, so its endmember paths must be absolute. Bundled
+        data (priors CSV, noise covariance) always ships with the package and
+        is resolved relative to it, independent of this.
 
         split: None (default) uses each class's full endmember library. "train"
         or "val" instead take complementary random halves of every class's
@@ -108,11 +97,13 @@ class MixtureSimulator:
             raise ValueError(f"split must be None, 'train', or 'val'; got {split!r}")
         if config is None:
             config = DEFAULT_CONFIG
+        config_dir = None
         if isinstance(config, str):
-            with open(_bundled(config)) as f:
+            config_path = _bundled(config)
+            config_dir = os.path.dirname(os.path.abspath(config_path))
+            with open(config_path) as f:
                 config = yaml.safe_load(f)
         self.cfg = config
-        self.data_root = _resolve_data_root(data_root)
         self.classes = list(config["classes"])
         self.n_classes = len(self.classes)
         self.cls_index = {c: i for i, c in enumerate(self.classes)}
@@ -128,7 +119,7 @@ class MixtureSimulator:
         raw_wl = None       # raw 285-band grid, captured once for the banddef
         for cls in self.classes:
             spectra, source, wl = self._load_class(config["endmembers"][cls],
-                                                   drop, self.data_root)
+                                                   drop, config_dir)
             raw_wl = wl if raw_wl is None else raw_wl
             if split is not None:
                 keep = _split_indices(len(spectra), split, split_frac, split_seed)
@@ -191,14 +182,25 @@ class MixtureSimulator:
 
     # ------------------------------------------------------------------ init --
     @staticmethod
-    def _load_class(files, drop_wl_ranges, data_root):
+    def _load_class(files, drop_wl_ranges, config_dir):
         """Concatenate class HDF5s, drop bad bands, return (spectra, source, wl).
 
         `wl` is the raw (pre-drop) wavelength grid, returned for the banddef.
+        Relative paths are resolved against `config_dir` (the sim_config.yaml's
+        own directory); a dict config has no such directory, so its endmember
+        paths must be absolute.
         """
         mats, srcs, wl = [], [], None
         for f in files:
-            path = f if os.path.isabs(f) else os.path.join(data_root, f)
+            if os.path.isabs(f):
+                path = f
+            elif config_dir is not None:
+                path = os.path.join(config_dir, f)
+            else:
+                raise ValueError(
+                    f"relative endmember path {f!r} but config was passed as a "
+                    "dict (no file location to resolve against) -- use an "
+                    "absolute path")
             with h5py.File(path, "r") as h:
                 sp = h["spectra"][:]
                 mats.append(sp)

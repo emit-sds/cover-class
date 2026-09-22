@@ -3,22 +3,24 @@
 # to customize.
 #
 # Paths: `priors_csv` and `noise.covariance_csv` are bundled with the package
-# (resolved inside specmix/data/). Endmember HDF5s are external, resolved against
-# the simulator's data_root ($SPECMIX_DATA_ROOT or the CWD; the repo root has
-# `datasets/`).
+# (resolved inside specmix/data/). Endmember HDF5s are external and NOT bundled
+# -- `endmembers:` paths below are resolved relative to THIS file's directory
+# (absolute paths also work). If you copy this file, point `endmembers:` at
+# wherever your own library lives.
 
-# Canonical class axis. Order must match the class columns in priors_csv and sets
-# the order of the returned fraction vector.
-classes: [water, pv, npv, soil, snow+ice]
+# Canonical class axis -- this list, not priors_csv, defines the order of the
+# returned fraction vector. priors_csv columns are matched by NAME against this
+# list (order-independent) and reordered/subset to it at load time.
+classes: [soil, pv, npv, snow+ice, water]
 
 # Endmember HDF5s per class (285-band raw grid + a per-row `source` dataset).
 # Multi-file classes are concatenated (e.g. soil = soil + rock).
 endmembers:
-  soil:     [datasets/emit-endmembers/soil_soil.hdf5, datasets/emit-endmembers/rock_rock.hdf5]
-  pv:       [datasets/emit-endmembers/pv_pv.hdf5]
-  npv:      [datasets/emit-endmembers/npv_npv.hdf5]
-  snow+ice: [datasets/emit-endmembers/snow+ice_snow+ice.hdf5]
-  water:    [datasets/emit-endmembers/water_water.hdf5]
+  soil:     [../../datasets/emit-endmembers/soil_soil.hdf5, ../../datasets/emit-endmembers/rock_rock.hdf5]
+  pv:       [../../datasets/emit-endmembers/pv_pv.hdf5]
+  npv:      [../../datasets/emit-endmembers/npv_npv.hdf5]
+  snow+ice: [../../datasets/emit-endmembers/snow+ice_snow+ice.hdf5]
+  water:    [../../datasets/emit-endmembers/water_water.hdf5]
 
 # Bad-band drop ranges (nm, inclusive): blue edge, two water-vapor features,
 # far-SWIR edge. Drops the 285-band raw grid to the 207 good bands used by the
