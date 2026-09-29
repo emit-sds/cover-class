@@ -1,22 +1,28 @@
-# SpecTf encoder architecture (see spectf.model.SpecTfEncoder and
-# spectf.model.SpecTfLabelQueryEncoder).
-# dim_output is set from the number of classes at runtime; the value here is a
-# default/documentation only.
+# SpecTf architecture with label-query pooling
+# (see spectf.model.SpecTfLabelQueryEncoder).
+# One learned query vector per class, cross-attended into the encoder's
+# token sequence, with an independent per-class head weight.
 #
-# type: "mean_pool" uses SpecTfEncoder with shared mean/max/flat pooling (agg).
-#       "label_query" uses SpecTfLabelQueryEncoder: one learned query per
-#       class cross-attended into the encoder tokens, with an independent
-#       per-class head weight (Query2Label if use_self_attn is false, C-Tran
-#       if true). agg is ignored for this type.
+# use_self_attn: whether queries additionally self-attend to each other after
+# cross-attending into the encoder tokens each pooling layer, letting the
+# model learn label co-occurrence structure (e.g. soil and pv commonly
+# co-occurring) directly in the pooling step. If false, queries only
+# cross-attend and never interact with each other.
+#
+# use_residual controls the encoder layers; use_pool_residual controls the
+# pooling layers separately.
+#
+# dim_output is set from the number of classes at runtime; the value here is
+# a default/documentation only.
 model:
-  type: "mean_pool"
+  type: "label_query"
   dim_output: 5
-  num_heads: 32
+  num_heads: 16
   dim_proj: 128
   dim_ff: 512
   dropout: 0.05
-  agg: "mean"
   use_residual: false
-  num_layers: 2
+  num_layers: 1
   num_pool_layers: 1
-  use_self_attn: false
+  use_self_attn: true
+  use_pool_residual: true

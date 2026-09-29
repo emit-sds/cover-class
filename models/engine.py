@@ -106,8 +106,11 @@ def build_model(model_cfg, wavelengths, n_classes, device):
 
     `model_cfg["model"]["type"]` selects the architecture:
     - "mean_pool" (default): SpecTfEncoder, shared mean/max/flat pooling.
-    - "label_query": SpecTfLabelQueryEncoder, one learned query per class
-      (Query2Label, or C-Tran if use_self_attn is true).
+    - "label_query": SpecTfLabelQueryEncoder, one learned query per class.
+      use_self_attn selects whether queries self-attend to each other after
+      cross-attending into the encoder tokens each pooling layer, or only
+      cross-attend. use_residual controls the encoder layers;
+      use_pool_residual controls the pooling layers separately.
     """
     banddef = torch.tensor(np.asarray(wavelengths), dtype=torch.float32, device=device)
     mp = model_cfg["model"]
@@ -126,7 +129,8 @@ def build_model(model_cfg, wavelengths, n_classes, device):
                                         use_residual=mp["use_residual"],
                                         num_layers=mp["num_layers"],
                                         num_pool_layers=mp["num_pool_layers"],
-                                        use_self_attn=mp["use_self_attn"]).to(device)
+                                        use_self_attn=mp["use_self_attn"],
+                                        use_pool_residual=mp["use_pool_residual"]).to(device)
     else:
         raise ValueError(f"Unknown model type {model_type!r}")
 
