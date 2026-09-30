@@ -8,7 +8,7 @@ task: classification            # classification | regression
 # Referenced configs / data.
 sim_config: ../src/specmix/sim_config.yaml   # specmix simulator config
 model_config: model_config.yaml              # SpecTf architecture
-ood_path: ../datasets/ood/validation_20260317_wfids_noash_goodwl_subsampled.h5
+ood_path: /Users/jakelee/Documents/EMIT/emit-frac/cover-class-new/datasets/ood/validation_20260317_wfids_noash_goodwl_subsampled.h5
 outdir: ./runs
 
 batch_size: 64

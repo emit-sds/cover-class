@@ -34,7 +34,6 @@ from torch.utils.data import DataLoader
 import schedulefree
 
 from specmix import MixtureDataset, numpy_collate, fractions_to_presence
-from spectf.model import SpecTfEncoder
 from spectf.utils import get_device
 
 # models.* imports work whether run as `python -m models.train` or
@@ -223,7 +222,7 @@ def main(train_config, task, outdir, epochs, steps_per_epoch, sim_val_size,
     sections, figs = E.sim_ood_artifacts(md, sim_probs, sim_val_presence, sim_val_frac,
                                          ood_probs, ood_Y, classes, spec.is_regression)
 
-    basename = f"{SpecTfEncoder.__name__}_{run_name}"
+    basename = f"{model.__class__.__name__}_{run_name}"
     md_path = R.write_report(sections, outdir, basename,
                              title=f"{task} — {run_name}")
     json_path = R.write_json(sections, outdir, basename)

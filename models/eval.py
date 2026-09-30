@@ -24,7 +24,6 @@ import rich_click as click
 import numpy as np
 
 from specmix import MixtureDataset, fractions_to_presence
-from spectf.model import SpecTfEncoder
 from spectf.utils import get_device
 
 try:
@@ -103,7 +102,7 @@ def main(train_config, weights, task, outdir, sim_val_size, num_workers):
     sections, figs = E.sim_ood_artifacts(md, sim_probs, sim_presence, sim_frac,
                                          ood_probs, ood_Y, classes, spec.is_regression)
 
-    basename = f"eval_{task}_{os.path.splitext(os.path.basename(weights))[0]}"
+    basename = f"eval_{model.__class__.__name__}_{task}_{os.path.splitext(os.path.basename(weights))[0]}"
     md_path = R.write_report(sections, outdir, basename,
                              title=f"eval {task} — {os.path.basename(weights)}")
     json_path = R.write_json(sections, outdir, basename)
