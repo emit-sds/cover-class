@@ -1,0 +1,33 @@
+water,pv,npv,soil,snow+ice,weight,justification
+0,0,0,0,0,0,No cover present — not a valid mixture target.
+1,0,0,0,0,135,"water — 1-class, 13.47% (presence rates × pair affinity γ × purity γ0)"
+0,1,0,0,0,125,"pv — 1-class, 12.50% (presence rates × pair affinity γ × purity γ0)"
+1,1,0,0,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,1,0,0,97,"npv — 1-class, 9.67% (presence rates × pair affinity γ × purity γ0)"
+1,0,1,0,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,1,0,0,88,"pv+npv — 2-class, 8.85% (presence rates × pair affinity γ × purity γ0)"
+1,1,1,0,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,0,1,0,152,"soil — 1-class, 15.20% (presence rates × pair affinity γ × purity γ0)"
+1,0,0,1,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,0,1,0,121,"pv+soil — 2-class, 12.06% (presence rates × pair affinity γ × purity γ0)"
+1,1,0,1,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,1,1,0,108,"npv+soil — 2-class, 10.76% (presence rates × pair affinity γ × purity γ0)"
+1,0,1,1,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,1,1,0,45,"pv+npv+soil — 3-class, 4.48% (presence rates × pair affinity γ × purity γ0)"
+1,1,1,1,0,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,0,0,1,38,"snow+ice — 1-class, 3.84% (presence rates × pair affinity γ × purity γ0)"
+1,0,0,0,1,25,"water+snow+ice — 2-class, 2.53% (presence rates × pair affinity γ × purity γ0)"
+0,1,0,0,1,14,"pv+snow+ice — 2-class, 1.41% (presence rates × pair affinity γ × purity γ0)"
+1,1,0,0,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,1,0,1,15,"npv+snow+ice — 2-class, 1.45% (presence rates × pair affinity γ × purity γ0)"
+1,0,1,0,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,1,0,1,3,"pv+npv+snow+ice — 3-class, 0.28% (presence rates × pair affinity γ × purity γ0)"
+1,1,1,0,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,0,1,1,26,"soil+snow+ice — 2-class, 2.56% (presence rates × pair affinity γ × purity γ0)"
+1,0,0,1,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,0,1,1,4,"pv+soil+snow+ice — 3-class, 0.43% (presence rates × pair affinity γ × purity γ0)"
+1,1,0,1,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,0,1,1,1,5,"npv+soil+snow+ice — 3-class, 0.51% (presence rates × pair affinity γ × purity γ0)"
+1,0,1,1,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
+0,1,1,1,1,0,4-way — pv+npv+soil+snow+ice not observed at 60 m.
+1,1,1,1,1,0,Water + land — open water does not sub-pixel-mix linearly with land.
