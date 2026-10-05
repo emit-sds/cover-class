@@ -1,38 +1,37 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "cover-data-orchestrator"
-version = "0.0.1"
-requires-python = ">=3.10"
-authors = [
-  {name = "Michael Kiper"},
-]
-maintainers = [
-  {name = "Michael Kiper", email = "michael.kiper@jpl.nasa.gov"},
-]
+name = "specmix"
+version = "0.1.0"
+description = "Spectral mixing simulator for EMIT fractional cover unmixing"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Jake Lee" }]
 dependencies = [
-  "torch>=2.8.0",
-  "msgspec>=0.19.0",
-  "numpy>=1.26",
-  "pyyaml>=6.0.2",
-  "h5py>=3.14.0",
-  "pandas>=2.3.2",
-  "scikit-learn>=1.7.1",
-  "requests>=2.32.5",
-  "kmedoids>=0.5.5",
-  "tqdm>=4.67.1",
-  "spectral>=0.24",
-  "reportlab>=4.4.5",
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "h5py",
+    "pyyaml",
+    "pandas",
+    "kmedoids",
 ]
 
 [project.optional-dependencies]
-example = [
-  "rich-click>=1.9.4",
-]
-
-[build-system]
-requires = ["setuptools >= 75.8.0"]
-build-backend = "setuptools.build_meta"
+# The Dataset imports torch lazily; install this extra to use it as a DataLoader source.
+torch = ["torch"]
+# Plotting for the eval / experiment scripts.
+viz = ["matplotlib"]
 
 [tool.setuptools]
-include-package-data = true
 package-dir = { "" = "src" }
-packages = ["cover_class"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# Ship the default config and bundled data (mixture prior + noise covariance)
+# so the installed package is self-sufficient. Endmember HDF5s are NOT bundled.
+specmix = ["sim_config.yaml", "data/*.csv"]
