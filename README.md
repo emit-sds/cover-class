@@ -93,7 +93,7 @@ src/specmix/          the installable simulator package
   dataset.py            MixtureDataset + collate/presence helpers
   bands, augment, noise, subsample, mixture_priors   pipeline components
   sim_config.yaml       packaged default config
-  data/                 bundled: mixture prior CSV + noise covariance CSV
+  data/                 bundled: mixture prior CSV, noise covariance CSV, water n,k (Fresnel glint)
 models/               train + eval the unmixing model on simulated data (see models/README.md)
 datasets/             external endmember libraries + validation sets (not bundled; see Data root)
 ```
@@ -105,7 +105,8 @@ datasets/             external endmember libraries + validation sets (not bundle
 1. **presence pattern** — sample which classes are present from the prior;
 2. **intra-class mix** — per present class, pick *k* endmembers and mix them
    (floor-then-Dirichlet weights);
-3. **augment** — per-class albedo (brightness) scaling + water glint;
+3. **augment** — per-class albedo (brightness) scaling + water glint (flat,
+   or with water's Fresnel shape: `augment.glint.shape`);
 4. **inter-class fractions** — a Dirichlet mix across present classes,
    constrained so each present class ≥ `interclass_min_frac`;
 5. **global illumination** — a whole-pixel brightness scalar (default OFF);

@@ -11,7 +11,8 @@ Per mixture (`simulate`), the 7-step pipeline:
   1. sample a class-presence pattern from the prior,
   2. per present class: pick k components from its subsample, intra-class mix
      (floor-then-Dirichlet weights),
-  3. per-class albedo (+ water glint) on each class's intra-class spectrum,
+  3. per-class albedo (+ water glint, flat or Fresnel-shaped) on each class's
+     intra-class spectrum,
   4. inter-class mix: Dirichlet fractions across present classes, constrained so
      every present class >= interclass_min_frac (per-CLASS floor),
   5. global whole-pixel illumination scalar,
@@ -30,7 +31,7 @@ import numpy as np
 import yaml
 
 from .bands import drop_bad_bands, good_band_mask
-from .augment import albedo_augment, glint_offset
+from .augment import albedo_augment, glint_offset, water_fresnel_shape
 from .noise import NoiseModel
 from .subsample import subsample
 from .mixture_priors import load_mixture_prior
@@ -161,8 +162,16 @@ class MixtureSimulator:
         a = config["augment"]
         self.albedo = {c: tuple(v) for c, v in a.get("albedo", {}).items()}
         self.magnitude_max = a.get("magnitude_max")
-        self.glint_classes = set(a.get("glint", {}).get("classes", []))
-        self.glint_range = tuple(a.get("glint", {}).get("range", [0.0, 0.0]))
+        g = a.get("glint", {})
+        self.glint_classes = set(g.get("classes", []))
+        self.glint_range = tuple(g.get("range", [0.0, 0.0]))
+        self.glint_tilt_range = tuple(g.get("tilt_range", [0.0, 0.0]))
+        glint_shape = g.get("shape", "flat")
+        if glint_shape not in ("flat", "fresnel"):
+            raise ValueError(f"glint.shape must be 'flat' or 'fresnel'; got {glint_shape!r}")
+        # Depends only on the band grid, so computed once here.
+        self.glint_shape = (water_fresnel_shape(self.wavelengths)
+                            if glint_shape == "fresnel" else None)
         self.global_illumination = tuple(a.get("global_illumination", [1.0, 1.0]))
 
         # --- noise ------------------------------------------------------------
@@ -241,7 +250,9 @@ class MixtureSimulator:
                                       self.magnitude_max, rng=rng)
         if cls in self.glint_classes and self.glint_range[1] > 0:
             spectrum = glint_offset(spectrum, self.glint_range[0],
-                                    self.glint_range[1], rng=rng)
+                                    self.glint_range[1], shape=self.glint_shape,
+                                    tilt_range=self.glint_tilt_range,
+                                    wavelengths=self.wavelengths, rng=rng)
         return spectrum
 
     def _interclass_fractions(self, k, rng, max_tries=100):
@@ -337,6 +348,20 @@ def _selftest(config_path, n=5000, seed=0):
         dark = X[(F[:, water_i] > 0)].mean() if (F[:, water_i] > 0).any() else float("nan")
         bright = X[(F[:, soil_i] > 0)].mean() if (F[:, soil_i] > 0).any() else float("nan")
         print(f"mean reflectance: water-present={dark:.3f}  soil-present={bright:.3f}")
+
+    # glint: Fresnel shape is 1 at 1050 nm, ~0.85 at 2200 nm; flat == old behaviour
+    from .augment import glint_offset
+    shp = water_fresnel_shape(sim.wavelengths)
+    i1050, i2200 = (int(np.argmin(abs(sim.wavelengths - w))) for w in (1050, 2200))
+    assert abs(shp[i1050] - 1) < 0.01 and abs(shp[i2200] - 0.85) < 0.01, shp[[i1050, i2200]]
+    base = np.full((3, sim.n_bands), 0.02, np.float32)
+    old = base + np.random.default_rng(1).uniform(0, 0.15, 3).astype(np.float32)[:, None]
+    flat = glint_offset(base, 0, 0.15, rng=np.random.default_rng(1))
+    fres = glint_offset(base, 0, 0.15, shape=shp, rng=np.random.default_rng(1))
+    assert np.array_equal(flat, old)
+    assert np.allclose(fres[:, i1050] - 0.02, flat[:, i1050] - 0.02, rtol=0.01)  # same g draws
+    print(f"glint: shape={sim.cfg['augment'].get('glint', {}).get('shape', 'flat')}  "
+          f"fresnel(2200)/fresnel(1050)={shp[i2200]:.3f}  flat path unchanged")
 
     per_class_presence = present_mask.mean(axis=0)
     print("class presence rate: " +

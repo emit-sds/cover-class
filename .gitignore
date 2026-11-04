@@ -1,3 +1,7 @@
+# development convenience dirs
+datasets/
+temp*/
+
 # vscode
 .vscode
 

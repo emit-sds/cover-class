@@ -27,7 +27,7 @@ endmembers:
 # labeled validation set and the noise covariance.
 drop_wl_ranges: [[0, 440], [1310, 1490], [1770, 2050], [2440, 2880]]
 
-priors_csv: data/mixture_priors.csv
+priors_csv: data/mixture_priors_v2.csv
 
 mixing:
   # Number of endmembers mixed within each class (uniform choice from the list,
@@ -56,14 +56,16 @@ augment:
     soil:     [0.90, 1.40]
     npv:      [0.20, 0.70]
   magnitude_max: 1.2          # cap the multiplier so no band exceeds this
-  glint:                      # additive wavelength-flat offset (sun/sky glint)
+  glint:                      # additive sun/sky glint
     classes: [water]
-    range: [0.0, 0.15]
+    range: [0.0, 0.15]        # glint magnitude at 1050 nm
+    shape: fresnel            # flat | fresnel (water Fresnel reflectance)
+    tilt_range: [0.0, 0.5]    # sky-glint tilt k in (lambda/1050)^-k; [0, 0] = off
   # Whole-pixel illumination scalar on the finished mixture. [1, 1] = off.
   global_illumination: [0.9, 1.1]
 
 noise:
-  covariance_csv: data/spectral_covariances_no_header_v2.csv  # 207x207 band covariance Σ
+  covariance_csv: data/spectral_cov_v3.csv  # 207x207 band covariance Σ
   white_floor_std: 0.0001             # always-on, signal-independent read/dark floor
   covariance_scalar: 0.3              # gain on the correlated (Σ) term
   covariance_brightness_scaled: true  # scale the correlated term by pixel mean reflectance

@@ -26,7 +26,7 @@ from .simulator import MixtureSimulator, DEFAULT_CONFIG
 from .dataset import MixtureDataset, numpy_collate, fractions_to_presence
 from .mixture_priors import MixturePrior, load_mixture_prior
 from .bands import drop_bad_bands, good_band_mask, DROP_WL_RANGES
-from .augment import albedo_augment, glint_offset
+from .augment import albedo_augment, glint_offset, water_fresnel_shape
 from .noise import NoiseModel
 from .subsample import subsample
 
@@ -43,6 +43,7 @@ __all__ = [
     "DROP_WL_RANGES",
     "albedo_augment",
     "glint_offset",
+    "water_fresnel_shape",
     "NoiseModel",
     "subsample",
 ]
