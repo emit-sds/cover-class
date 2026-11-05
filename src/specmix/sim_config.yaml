@@ -54,7 +54,7 @@ augment:
     snow+ice: [0.90, 1.20]
     water:    [0.90, 1.10]
     soil:     [0.90, 1.40]
-    npv:      [0.20, 0.70]
+    npv:      [0.20, 1.00]
   magnitude_max: 1.2          # cap the multiplier so no band exceeds this
   glint:                      # additive sun/sky glint
     classes: [water]
@@ -63,7 +63,7 @@ augment:
     water_nk_csv: data/water_nk_hale_querry_1973.csv  # water refractive index; used by shape: fresnel
     tilt_range: [0.0, 0.5]    # extra blue tilt (lambda/1050)^-k, k drawn per spectrum; [0, 0] = off
   # Whole-pixel illumination scalar on the finished mixture. [1, 1] = off.
-  global_illumination: [0.9, 1.1]
+  global_illumination: [0.7, 1.1]
 
 noise:
   covariance_csv: data/spectral_cov_v3.csv  # 207x207 band covariance Σ
