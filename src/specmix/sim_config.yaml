@@ -58,9 +58,10 @@ augment:
   magnitude_max: 1.2          # cap the multiplier so no band exceeds this
   glint:                      # additive sun/sky glint
     classes: [water]
-    range: [0.0, 0.15]        # glint magnitude at 1050 nm
+    range: [0.0, 0.15]        # glint magnitude at 1050 nm (augment.GLINT_REF_NM)
     shape: fresnel            # flat | fresnel (water Fresnel reflectance)
-    tilt_range: [0.0, 0.5]    # sky-glint tilt k in (lambda/1050)^-k; [0, 0] = off
+    water_nk_csv: data/water_nk_hale_querry_1973.csv  # water refractive index; used by shape: fresnel
+    tilt_range: [0.0, 0.5]    # extra blue tilt (lambda/1050)^-k, k drawn per spectrum; [0, 0] = off
   # Whole-pixel illumination scalar on the finished mixture. [1, 1] = off.
   global_illumination: [0.9, 1.1]
 

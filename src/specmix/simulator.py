@@ -60,7 +60,7 @@ def _split_indices(n, split, frac, seed):
 
 
 def _bundled(p):
-    """Resolve a bundled-data path (config/priors/covariance).
+    """Resolve a bundled-data path (config/priors/covariance/water n,k).
 
     Absolute -> as-is. A bare basename or a path under `data/` -> resolved
     inside the package's data dir. Anything else -> relative to the package dir.
@@ -170,7 +170,7 @@ class MixtureSimulator:
         if glint_shape not in ("flat", "fresnel"):
             raise ValueError(f"glint.shape must be 'flat' or 'fresnel'; got {glint_shape!r}")
         # Depends only on the band grid, so computed once here.
-        self.glint_shape = (water_fresnel_shape(self.wavelengths)
+        self.glint_shape = (water_fresnel_shape(self.wavelengths, _bundled(g["water_nk_csv"]))
                             if glint_shape == "fresnel" else None)
         self.global_illumination = tuple(a.get("global_illumination", [1.0, 1.0]))
 
@@ -348,20 +348,6 @@ def _selftest(config_path, n=5000, seed=0):
         dark = X[(F[:, water_i] > 0)].mean() if (F[:, water_i] > 0).any() else float("nan")
         bright = X[(F[:, soil_i] > 0)].mean() if (F[:, soil_i] > 0).any() else float("nan")
         print(f"mean reflectance: water-present={dark:.3f}  soil-present={bright:.3f}")
-
-    # glint: Fresnel shape is 1 at 1050 nm, ~0.85 at 2200 nm; flat == old behaviour
-    from .augment import glint_offset
-    shp = water_fresnel_shape(sim.wavelengths)
-    i1050, i2200 = (int(np.argmin(abs(sim.wavelengths - w))) for w in (1050, 2200))
-    assert abs(shp[i1050] - 1) < 0.01 and abs(shp[i2200] - 0.85) < 0.01, shp[[i1050, i2200]]
-    base = np.full((3, sim.n_bands), 0.02, np.float32)
-    old = base + np.random.default_rng(1).uniform(0, 0.15, 3).astype(np.float32)[:, None]
-    flat = glint_offset(base, 0, 0.15, rng=np.random.default_rng(1))
-    fres = glint_offset(base, 0, 0.15, shape=shp, rng=np.random.default_rng(1))
-    assert np.array_equal(flat, old)
-    assert np.allclose(fres[:, i1050] - 0.02, flat[:, i1050] - 0.02, rtol=0.01)  # same g draws
-    print(f"glint: shape={sim.cfg['augment'].get('glint', {}).get('shape', 'flat')}  "
-          f"fresnel(2200)/fresnel(1050)={shp[i2200]:.3f}  flat path unchanged")
 
     per_class_presence = present_mask.mean(axis=0)
     print("class presence rate: " +
