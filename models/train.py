@@ -141,8 +141,13 @@ def main(train_config, task, outdir, epochs, steps_per_epoch, sim_val_size,
     model = E.build_model(m_cfg, train_ds.wavelengths, n_classes, device)
     spec = E.make_taskspec(task, n_classes, cfg, min_frac)
 
+    # Decoupled weight decay on weight matrices only; biases and norm gains
+    # (1-D params) are exempt, as is standard for transformers.
+    weight_decay = tr.get("weight_decay", 0.0)
+    params = [p for p in model.parameters() if p.requires_grad]
     optimizer = schedulefree.AdamWScheduleFree(
-        (p for p in model.parameters() if p.requires_grad),
+        [{"params": [p for p in params if p.ndim > 1], "weight_decay": weight_decay},
+         {"params": [p for p in params if p.ndim <= 1], "weight_decay": 0.0}],
         lr=tr["learning_rate"], warmup_steps=tr["warmup_steps"])
 
     # --- W&B -------------------------------------------------------------------
@@ -155,6 +160,7 @@ def main(train_config, task, outdir, epochs, steps_per_epoch, sim_val_size,
         mode=wandb_mode or cfg["wandb"].get("mode", "online"),
         config={"task": task, "min_frac": min_frac, "batch_size": batch_size,
                 "sim_val_size": sim_val_size, "loss_kind": spec.kind,
+                "weight_decay": weight_decay,
                 "model": mp, "seed": seed,
                 "sim_config": sim_config_path, "model_config": model_config_path},
     )

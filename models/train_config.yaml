@@ -8,7 +8,7 @@ task: classification            # classification | regression
 # Referenced configs / data.
 sim_config: ../src/specmix/sim_config.yaml   # specmix simulator config
 model_config: model_config.yaml              # SpecTf architecture
-ood_path: /Users/jakelee/Documents/EMIT/emit-frac/cover-class/datasets/ood/validation_20260908_subsampled.h5
+ood_path: /Users/jakelee/Documents/EMIT/emit-frac/cover-class/datasets/ood/validation_20261028_subsampled.h5
 outdir: ./runs
 
 batch_size: 64
@@ -29,6 +29,9 @@ loss:
 training:
   learning_rate: 0.0001
   warmup_steps: 10
+  # AdamW decoupled weight decay on weight matrices (biases/norms exempt).
+  # 0.0 = off (all checkpoints up to epoch730 were trained without it).
+  weight_decay: 0.05            # tau = 1/(lr*wd) = 200k steps at lr 1e-4
   steps_per_epoch: 10
   total_epochs: 1
   num_workers: 8
