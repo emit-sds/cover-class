@@ -1,0 +1,3 @@
+SpecTF cond + argmax fallback {'npv': (0.69, 0.14), 'pv': (0.76, 0.01), 'snow+ice': (0.96, 0.02), 'soil': (0.89, 0.01), 'water': (0.73, 0.0)}
+frac 1 class 0.756 mean@.05 1.29
+truth of empty pixels (present counts per class): {'soil': np.int64(16), 'pv': np.int64(14), 'npv': np.int64(10), 'snow+ice': np.int64(286), 'water': np.int64(1545)} n 1848

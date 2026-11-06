@@ -1,0 +1,13 @@
+\begin{tabular}{l ccc ccc}
+\toprule
+ & \multicolumn{3}{c}{Mixed-pixel MAE ($0<x<1$)} & \multicolumn{3}{c}{Pure-pixel MAE ($x=1$)} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+Class & Global E(MC)$^2$ & SpecTF & MLP-NPV & Global E(MC)$^2$ & SpecTF & MLP-NPV \\
+\midrule
+Soil & \textbf{0.17} & \textbf{0.17} & 0.18 & 0.51 & 0.11 & \textbf{0.05} \\
+PV & 0.19 & \textbf{0.13} & \textbf{0.13} & 0.24 & \textbf{0.01} & \textbf{0.01} \\
+NPV & 0.19 & \textbf{0.15} & 0.16 & 0.41 & \textbf{0.01} & 0.02 \\
+Snow/ice & 0.15 & \textbf{0.14} & 0.17 & 0.41 & \textbf{0.04} & 0.07 \\
+Water & \textbf{0.17} & 0.21 & 0.29 & 0.28 & \textbf{0.00} & \textbf{0.00} \\
+\bottomrule
+\end{tabular}

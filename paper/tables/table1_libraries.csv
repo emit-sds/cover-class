@@ -1,0 +1,6 @@
+cls,n_spectra,n_reduced,sources
+Soil,7069,80,ochoa2024_ossl (3516); ochoa2024_ssl_geocradle (1753); ochoa2024_australia_ngsa (1060); lamb2025_quemada_daughtry2016 (263); ochoa2024_meyer-okin (184); ochoa2024_asd_simulation (131); clark2025_tetracorder (130); ochoa2024_lakefire2024 (32)
+PV,1454,40,blackhawk_island_chlus_townsend2018 (1000); ochoa2024_meyer-okin (322); hyspiri_california (82); ochoa2024_asd_simulation (49); ochoa2024_lakefire2024 (1)
+NPV,506,40,ochoa2024_meyer-okin (255); lamb2025_quemada_daughtry2016 (147); ochoa2024_asd_simulation (71); ochoa2024_lakefire2024 (33)
+Snow/ice,445,50,bohn2025_cook2020_hcrf (185); bohn2025_lake_mary_svc_20250327 (95); bohn2026_lake_mary_asd_20260113 (91); bohn2025_malinka2018_asd (41); bohn2025_chickenfoot_lake_20250524 (33)
+Water,737,50,gloria2022 (737)

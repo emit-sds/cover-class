@@ -1,0 +1,31 @@
+# Scene crops for the manuscript scene figures. nc_file paths are relative to
+# this directory and may be globs (the trailing orbit/scene id varies). Download the EMIT L2A RFL granules into ../outputs/downloads/
+# (see README). Crops are in sensor (downtrack, crosstrack) geometry, as in
+# EMIT-FC scenes/run_scene.py; crop_origin is [row, col] of the top-left corner.
+
+# Figure 1 -- global unmixing of a desert scene (Anti-Atlas, Morocco).
+# EMIT-FC scenes.yml: FC-4, crop 600 at [0, 0].
+FC-4:
+  fid: emit20250124t125641_o02409_s001
+  nc_file: ../outputs/downloads/FC-4/EMIT_L2A_RFL_001_20250124T125641_*.nc
+  crop_size: 600
+  crop_origin: [0, 0]
+
+# Figures 11-12 -- Northern Patagonian Ice Field. The EMIT-FC README runs it
+# with --crop-size 600 --crop-origin 500,500 (not in scenes.yml; confirm).
+FC-8:
+  fid: emit20230904t172442_o24711_s000
+  nc_file: ../outputs/downloads/FC-8/EMIT_L2A_RFL_001_20230904T172442_*.nc
+  crop_size: 600
+  crop_origin: [500, 500]
+
+# Figure 6 -- validation polygon FC-35 (only needs the granule, no unmixing).
+FC-35:
+  fid: emit20240701t235941_o18315_s001
+  nc_file: ../outputs/downloads/FC-35/EMIT_L2A_RFL_001_20240701T235941_*.nc
+
+# Local smoke-test scene (already on disk) used to validate the scene pipeline.
+test-scene:
+  nc_file: ../../../data/test-scene/EMIT_L2A_RFL_001_20250404T194611_2509413_006.nc
+  crop_size: 40
+  crop_origin: [600, 600]

@@ -1,0 +1,6 @@
+cls,poly_present,poly_absent,poly_uncertain,spec_present,spec_absent,spec_uncertain
+Soil,29,48,17,5549,9595,3209
+PV,31,55,8,5949,10995,1409
+NPV,26,46,22,4758,9195,4400
+Snow/ice,15,78,1,3000,15153,200
+Water,33,56,5,6595,10758,1000
