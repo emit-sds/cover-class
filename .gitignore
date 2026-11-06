@@ -17,3 +17,5 @@ dist
 __pycache__/
 
 **/wandb
+# regenerable paper outputs (models, SMA chunks, predictions)
+paper/outputs/

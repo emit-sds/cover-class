@@ -1,0 +1,73 @@
+# Paper reproduction settings. Relative paths resolve against this file's
+# directory (cover-class/paper/configs/).
+
+classes: [soil, pv, npv, snow+ice, water]
+
+# v2 simulator config (copy of spectf_decoder_v3/sim_config.yaml with the HPC
+# endmember paths remapped to cover-class/datasets/).
+sim_config: sim_config.yaml
+split_frac: 0.5          # endmember train/val split, as in SpecTf training
+split_seed: 0
+train_base_seed: 42      # SpecTf training stream (MLP uses its CV seed instead)
+test_base_seed: 43       # held-out (val-split) simulated test set; = eval.py convention
+sim_test_size: 10000
+
+# Stratified forced-fraction test set (Figure 9).
+forced_fraction:
+  n_per_bin: 1000
+  bin_width: 0.05
+  min_fraction: 0.01
+  base_seed: 44
+
+# Real EMIT validation polygons (OOD). Label 2 (uncertain) is excluded.
+ood_path: ../../datasets/ood/validation_20260908_subsampled.h5
+geojson_path: ../../../data/polygons_verified_20260908.geojson
+
+# SpecTf (do not retrain): label-query encoder from spectf_decoder_v3/.
+spectf:
+  model_config: spectf_model_config.yaml
+  weights: ../../../spectf_decoder_v3/model_epoch800.pth
+
+# MLP-NPV (Yuliya's mlp0128d2_2048d6 from EMIT-FC/frac-cover).
+mlp:
+  main_seed: 123
+  num_cv_seeds: 10
+  hidden_layers: 2
+  start_width: 128
+  width_decay: 0.5
+  min_width: 32
+  dropout: 0.1
+  npv_hidden_layers: 6
+  npv_start_width: 2048
+  npv_width_decay: 0.75
+  npv_min_width: 256
+  npv_dropout: 0.2
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  max_steps: 5000
+  batch_size: 64
+  aux_weight: 0.3
+
+# E(MC)^2 via SpectralUnmixing.jl (marchett2 fork, branch add_spec_res).
+sma:
+  julia: ~/Documents/EMIT/tools/julia-1.10.5/bin/julia
+  julia_project: ~/Documents/EMIT/tools/SpectralUnmixing-marchett
+  julia_depot: ~/Documents/EMIT/tools/julia-depot
+  script: ../julia/unmix_pipeline_v2.jl
+  n_jobs: 8
+  kwargs:
+    model: sma
+    optimization: bvls
+    normalization: none
+    n_mc: 30
+    num_endmembers: 25
+    subsampling: random
+    max_combinations: 10
+    combination_type: class-even
+    refl_scale: 0.3
+
+presence_threshold: 0.05   # fraction >= this counts as present (Tables 4, Fig 10)
+
+outputs: ../outputs
+figures: ../figures
+tables: ../tables
