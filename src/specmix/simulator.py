@@ -11,7 +11,7 @@ Per mixture (`simulate`), the 7-step pipeline:
   1. sample a class-presence pattern from the prior,
   2. per present class: pick k components from its subsample, intra-class mix
      (floor-then-Dirichlet weights),
-  3. per-class albedo (+ water glint, flat or Fresnel-shaped) on each class's
+  3. per-class albedo (+ water sun/sky glint, flat or Fresnel-shaped) on each class's
      intra-class spectrum,
   4. inter-class mix: Dirichlet fractions across present classes, constrained so
      every present class >= interclass_min_frac (per-CLASS floor),
@@ -165,7 +165,10 @@ class MixtureSimulator:
         g = a.get("glint", {})
         self.glint_classes = set(g.get("classes", []))
         self.glint_range = tuple(g.get("range", [0.0, 0.0]))
-        self.glint_tilt_range = tuple(g.get("tilt_range", [0.0, 0.0]))
+        if "tilt_range" in g:
+            raise ValueError("glint.tilt_range was replaced by sky_range / sky_k_range")
+        self.glint_sky_range = tuple(g.get("sky_range", [0.0, 0.0]))
+        self.glint_sky_k_range = tuple(g.get("sky_k_range", [1.0, 4.0]))
         glint_shape = g.get("shape", "flat")
         if glint_shape not in ("flat", "fresnel"):
             raise ValueError(f"glint.shape must be 'flat' or 'fresnel'; got {glint_shape!r}")
@@ -248,10 +251,11 @@ class MixtureSimulator:
         if rng_ab is not None:
             spectrum = albedo_augment(spectrum, rng_ab[0], rng_ab[1],
                                       self.magnitude_max, rng=rng)
-        if cls in self.glint_classes and self.glint_range[1] > 0:
+        if cls in self.glint_classes and (self.glint_range[1] > 0 or self.glint_sky_range[1] > 0):
             spectrum = glint_offset(spectrum, self.glint_range[0],
                                     self.glint_range[1], shape=self.glint_shape,
-                                    tilt_range=self.glint_tilt_range,
+                                    sky_range=self.glint_sky_range,
+                                    sky_k_range=self.glint_sky_k_range,
                                     wavelengths=self.wavelengths, rng=rng)
         return spectrum
 

@@ -105,8 +105,9 @@ datasets/             external endmember libraries + validation sets (not bundle
 1. **presence pattern** — sample which classes are present from the prior;
 2. **intra-class mix** — per present class, pick *k* endmembers and mix them
    (floor-then-Dirichlet weights);
-3. **augment** — per-class albedo (brightness) scaling + water glint (flat,
-   or with water's Fresnel shape: `augment.glint.shape`);
+3. **augment** — per-class albedo (brightness) scaling + water sun + sky glint,
+   `F(λ)·(g + s·(λ/450)^-k)`: sun glint `g` at 1050 nm, sky glint `s` at 450 nm with
+   skylight exponent `k`, and `F` = water's Fresnel shape (`augment.glint.shape`) or flat;
 4. **inter-class fractions** — a Dirichlet mix across present classes,
    constrained so each present class ≥ `interclass_min_frac`;
 5. **global illumination** — a whole-pixel brightness scalar (default OFF);
